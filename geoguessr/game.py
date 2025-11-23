@@ -29,6 +29,7 @@ class GeoguessrDuelRound:
     score: int
     damage_dealt: int
     damage_taken: int
+    guessed_first: bool
 
 @dataclass()
 class GeoguessrDuelGame:
@@ -155,11 +156,38 @@ class GeoguessrDuelGame:
             damage_dealt = to_int(rr.get('damageDealt', 0)) if rr else 0
             damage_taken = to_int(opp_rr.get('damageDealt', 0)) if opp_rr else 0
 
+            # determine which team guessed first by comparing the earliest
+            # guess timestamps for this round among all players on each team.
+            def earliest_guess_time(team_obj) -> datetime | None:
+                if not team_obj:
+                    return None
+                earliest = None
+                for p in team_obj.get('players', []):
+                    for g in p.get('guesses', []):
+                        if g.get('roundNumber') != rn:
+                            continue
+                        t = parse_iso(g.get('created'))
+                        if not t:
+                            continue
+                        if earliest is None or t < earliest:
+                            earliest = t
+                return earliest
+
+            team_earliest = earliest_guess_time(player_team)
+            opp_earliest = earliest_guess_time(opp_team)
+            if team_earliest and opp_earliest:
+                guessed_first = team_earliest < opp_earliest
+            elif team_earliest and not opp_earliest:
+                guessed_first = True
+            else:
+                guessed_first = False
+
             out.append(GeoguessrDuelRound(country_code=country_code,
                                           time_secs=time_secs,
                                           distance_meters=distance_meters,
                                           score=score,
                                           damage_dealt=damage_dealt,
-                                          damage_taken=damage_taken))
+                                          damage_taken=damage_taken,
+                                          guessed_first=guessed_first))
 
         return out
