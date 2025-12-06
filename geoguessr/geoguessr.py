@@ -122,11 +122,13 @@ class Geoguessr:
         """
         For each game in ranked duel and team duels, convert user IDs to usernames
         """
-        for game in self.ranked_duel_games:
+        # Combine all games for a single progress bar
+        all_games = list(self.ranked_duel_games)
+        for games in self.ranked_team_duel_games.values():
+            all_games.extend(games)
+        from tqdm import tqdm
+        for game in tqdm(all_games, desc="Converting user IDs to usernames"):
             game.opponents = [self._get_username(uid) for uid in game.opponents]
-        for _, games in self.ranked_team_duel_games.items():
-            for game in games:
-                game.opponents = [self._get_username(uid) for uid in game.opponents]
     
     def _username_to_filename(self, username: str) -> str:
         """
@@ -144,12 +146,16 @@ class Geoguessr:
         games = {GameType.DAILY_CHALLENGE: [], GameType.RANKED_DUELS: [], GameType.RANKED_TEAM_DUELS: []}
         token = ""
         total_game_ids = 0
-        while total_game_ids < max_games and token is not None:
-            temp_games, token = self._get_game_ids_page(token)
-            for type in games.keys():
-                games[type].extend(temp_games[type])
-            total_game_ids = sum(len(games[type]) for type in games.keys())
-            print(f"Fetched {total_game_ids} game IDs so far")
+        # Use tqdm to show progress of fetching game IDs
+        with tqdm(total=max_games, desc="Fetching game IDs") as pbar:
+            while total_game_ids < max_games and token is not None:
+                temp_games, token = self._get_game_ids_page(token)
+                for type in games.keys():
+                    prev_count = len(games[type])
+                    games[type].extend(temp_games[type])
+                    # Update progress bar by the number of new games added
+                    pbar.update(len(games[type]) - prev_count)
+                total_game_ids = sum(len(games[type]) for type in games.keys())
         
         self.daily_challenge_games = games[GameType.DAILY_CHALLENGE]
 
