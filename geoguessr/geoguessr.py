@@ -2,112 +2,9 @@
 
 import requests
 import json
-from dataclasses import dataclass
 
-BASE_URL = "https://www.geoguessr.com/api"
-_nfca_TOKEN = "qbL8x7iQNKQt4dB%2Bv6u8Tlda8CnYFpy32E7SrYiZc%2BY%3DYkrawXljhWiTu3djEW%2FNvnZ%2FK8SPp31jSBq%2BvVYWI55hssg%2Ff7GfbVJ7Nmyu2bmOHvi8aq9s3IEA6gwUOnukyWzOWZ9OXDCVOqcIwGX8Sos%3D"
-
-# Display
-
-ENDPOINTS = {
-    "profile": "v3/profiles"
-}
-
-session = requests.Session()
-session.cookies.set("_nfca", _nfca_TOKEN, domain="www.geoguessr.com")
-
-profile = session.get(f"{BASE_URL}/{ENDPOINTS['profile']}")
-
-@dataclass()
-class GameType:
-    RANKED_DUELS: str = "Duels"
-    RANKED_TEAM_DUELS: str = "TeamDuels"
-    DAILY_CHALLENGE: str = "DailyChallenge"
-    UNKNOWN: str = "Unknown"
-
-@dataclass()
-class GameMode:
-    MOVING: str = "Moving"
-    NO_MOVE: str = "NoMove"
-    NMPZ: str = "NMPZ"
-
-@dataclass()
-class GeoguessrChallengeGame:
-    game_type: GameType
-    game_id: str
-    challenge_token: str
-    points: int
-
-@dataclass()
-class GeoguessrDuelRound:
-    country_code: str
-    time_secs: int
-    distance_meters: int
-    score: int
-    damage: int
-
-@dataclass()
-class GeoguessrDuelGame:
-    game_type: GameType
-    game_id: str
-    mode: GameMode
-    map: str
-    rounds: list[GeoguessrDuelRound]
-    rating_before: int
-    rating_after: int
-    game_mode_rating_before: int
-    game_mode_rating_after: int
-
-    def __init__(self, game_type: GameType, game_id: str, player_id: str, data: dict) -> None:
-        self.game_type = game_type
-        self.game_id = game_id
-        self.mode = self._get_mode(data)
-        self.map = data.get('options', {}).get('map', "").get('name', "")
-        self.rounds = len(data.get('rounds', []))
-
-        for team in data.get('teams', []):
-            for player in team.get('players', []):
-                if player.get('id') == player_id:
-                    self.rounds = data.get('rounds', 0)
-                    self.rating_before = player.get('ratingBefore', 0)
-                    self.rating_after = player.get('ratingAfter', 0)
-                    self.game_mode_rating_before = player.get('gameModeRatingBefore', 0)
-                    self.game_mode_rating_after = player.get('gameModeRatingAfter', 0)
-        return
-
-    
-    def _get_mode(self, data) -> GameMode:
-        options = data.get('options', {})
-        movement_options = options.get('movementOptions', {})
-        forbid_moving = movement_options.get('forbidMoving', False)
-        forbid_zooming = movement_options.get('forbidZooming', False)
-        if not forbid_moving:
-            return GameMode.MOVING
-        elif forbid_zooming:
-            return GameMode.NMPZ
-        else:
-            return GameMode.NO_MOVE
-    
-    def 
-    
-    @staticmethod
-    def from_game_data(data: dict) -> 'GeoguessrGame':
-        game_id = data.get('gameId', "")
-        game_mode = GeoguessrDuelGame._get_mode(data)
-
-        competitive_mode = data.get('competitiveGameMode', "")
-        if "isDailyChallenge" in data:
-            return GeoguessrGame(GameType.DAILY_CHALLENGE, 
-                                 game_id,
-                                 points=data.get('points', 0),
-                                 challenge_token=data.get('challengeToken', ''))
-        
-        if game_mode == "Duels" and competitive_mode == "StandardDuels":
-            return GeoguessrGame(GameType.RANKED_DUELS, game_id)
-        elif game_mode == "TeamDuels" and competitive_mode == "StandardTeamDuels":
-            return GeoguessrGame(GameType.RANKED_TEAM_DUELS, game_id)
-        return GeoguessrGame(GameType.UNKNOWN, game_id)
-
+from dataclasses import fields
+from geoguessr.game import GeoguessrDuelGame, GeoguessrChallengeGame, GameType
 
 class Geoguessr:
     def __init__(self, username: str, ncfa_cookie: str) -> None:
@@ -141,33 +38,34 @@ class Geoguessr:
         user = raw_data.get('user', {})
         return user.get('id', "")        
     
-    def _query_game_data(self, game_id: str) -> GeoguessrGame:
+    def _query_game_data(self, game_type: str, game_id: str) -> GeoguessrDuelGame | None:
         url = f"https://game-server.geoguessr.com/api/duels/{game_id}"
         raw_data = self._make_request(url)
-        return self._payload_to_game(raw_data)
+        if raw_data is None:
+            return None
+        return GeoguessrDuelGame(game_type, game_id, self.user_id, raw_data)
     
-    def _payload_to_game(self, payload: dict) -> GeoguessrGame:
+    def _get_game_type(self, payload: dict) -> GameType:
+        if "isDailyChallenge" in payload:
+            return GameType.DAILY_CHALLENGE
         game_id = payload.get('gameId')
         if not game_id:
-            return None
-        if "isDailyChallenge" in payload:
-            return GeoguessrGame(GameType.DAILY_CHALLENGE, 
-                                 game_id,
-                                 points=payload.get('points', 0),
-                                 challenge_token=payload.get('challengeToken', ''))
-        
+            return GameType.UNKNOWN       
         game_mode = payload.get('gameMode', "")
         competitive_mode = payload.get('competitiveGameMode', "")
         if game_mode == "Duels" and competitive_mode == "StandardDuels":
-            return GeoguessrGame(GameType.RANKED_DUELS, game_id)
-        elif game_mode == "TeamDuels" and competitive_mode == "StandardTeamDuels":
-            return GeoguessrGame(GameType.RANKED_TEAM_DUELS, game_id)
-        return None
-    
-    def _get_game_ids_page(self, pagination_token) -> tuple[GeoguessrGame, str]:
+            return GameType.RANKED_DUELS
+        elif game_mode == "TeamDuels" and competitive_mode == "StandardDuels":
+            return GameType.RANKED_TEAM_DUELS
+        return GameType.UNKNOWN
+
+    def _get_game_ids_page(self, pagination_token) -> tuple[dict, str]:
+        """
+        Return a dictionary containing a list of games for each game type and the next pagination token
+        """
         url = f"https://www.geoguessr.com/api/v4/feed/private?paginationToken={pagination_token}"
         raw_data = self._make_request(url)
-        games = []
+        games = {GameType.DAILY_CHALLENGE: [], GameType.RANKED_DUELS: [], GameType.RANKED_TEAM_DUELS: []}
         entries = raw_data['entries']
         token = raw_data.get('paginationToken')
         for item in entries:
@@ -175,23 +73,42 @@ class Geoguessr:
             for activity in data:
                 if isinstance(activity, dict):
                     game_data = activity.get('payload', {})
-                    game = self._payload_to_game(game_data)
-                    if game:
-                        games.append(game)
+                    game_id = game_data.get('gameId', "")
+                    time = activity.get('time', "")
+                    game_type = self._get_game_type(game_data)
+                    if game_type == GameType.DAILY_CHALLENGE:
+                        challenge_token = game_data.get('challengeToken', "")
+                        points = game_data.get('points', 0)
+                        game = GeoguessrChallengeGame(game_type, time, challenge_token, points)
+                        games[GameType.DAILY_CHALLENGE].append(game)
+                    elif game_type != GameType.UNKNOWN:
+                        games[game_type].append(game_id)
         return games, token
     
-    def get_games(self, max_games=1000) -> list:
-        game_ids = []
+    def get_games(self, max_games=1000) -> dict:
+        """
+        Return a dictionary containing a list of games for each game type
+        """
+        games = {GameType.DAILY_CHALLENGE: [], GameType.RANKED_DUELS: [], GameType.RANKED_TEAM_DUELS: []}
         token = ""
-        while len(game_ids) < max_games and token:
-            ids, token = self._get_game_ids_page(token)
-            game_ids.extend(ids)
-            #print(f"Fetched {len(game_ids)} game IDs so far. Next token: {token}")
-        return game_ids[:max_games]
+        total_game_ids = 0
+        while total_game_ids < max_games and token is not None:
+            temp_games, token = self._get_game_ids_page(token)
+            for type in games.keys():
+                games[type].extend(temp_games[type])
+            total_game_ids = sum(len(games[type]) for type in games.keys())
+            print(f"Fetched {total_game_ids} game IDs so far. Next token: {token}")
+
+        # For each duel game query the game data
+        for type in [GameType.RANKED_DUELS, GameType.RANKED_TEAM_DUELS]:
+            duel_game_ids = games[type]
+            duel_games = []
+            for game_id in duel_game_ids:
+                duel_game = self._query_game_data(type, game_id)
+                if duel_game is not None:
+                    duel_games.append(duel_game)
+            games[type] = duel_games
+
+        return games
 
     
-geo = Geoguessr("Draig", _nfca_TOKEN)
-
-print(len(geo.get_game_ids(1)))
-
-#print(geo.get_elo())

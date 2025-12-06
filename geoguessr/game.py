@@ -17,7 +17,7 @@ class GameMode:
 @dataclass()
 class GeoguessrChallengeGame:
     game_type: GameType
-    game_id: str
+    time: str
     challenge_token: str
     points: int
 
@@ -35,13 +35,14 @@ class GeoguessrDuelRound:
 class GeoguessrDuelGame:
     game_type: GameType
     game_id: str
+    time: str
     mode: GameMode
     map: str
     rounds: list[GeoguessrDuelRound]
-    rating_before: int
-    rating_after: int
-    game_mode_rating_before: int
-    game_mode_rating_after: int
+    rating_before: int = 0
+    rating_after: int = 0
+    game_mode_rating_before: int = 0
+    game_mode_rating_after: int = 0
 
 
     def __init__(self, game_type: GameType, game_id: str, player_id: str, data: dict) -> None:
@@ -49,17 +50,26 @@ class GeoguessrDuelGame:
         self.game_id = game_id
         self.player_id = player_id
         self.mode = self._get_mode(data)
-        self.map = data.get('options', {}).get('map', "").get('name', "")
-        self.rounds = len(data.get('rounds', []))
+        map_dict = data.get('options', {}).get('map', {})
+        if map_dict:
+            self.map = map_dict.get('name', "")
+        else:
+            self.map = ""
+        self.rounds = self._get_rounds(data)
 
         for team in data.get('teams', []):
             for player in team.get('players', []):
-                if player.get('id') == player_id:
-                    self.rounds = data.get('rounds', 0)
-                    self.rating_before = player.get('ratingBefore', 0)
-                    self.rating_after = player.get('ratingAfter', 0)
-                    self.game_mode_rating_before = player.get('gameModeRatingBefore', 0)
-                    self.game_mode_rating_after = player.get('gameModeRatingAfter', 0)
+                if player.get('playerId') == player_id:
+                    progress = player.get('progressChange', {})
+                    if not progress:
+                        continue
+                    rating_progress = progress.get('rankedSystemProgress', {})
+                    if not rating_progress:
+                        continue
+                    self.rating_before = rating_progress.get('ratingBefore', 0)
+                    self.rating_after = rating_progress.get('ratingAfter', 0)
+                    self.game_mode_rating_before = rating_progress.get('gameModeRatingBefore', 0)
+                    self.game_mode_rating_after = rating_progress.get('gameModeRatingAfter', 0)
         return
 
     
