@@ -4,10 +4,11 @@ import requests
 import json
 from tqdm import tqdm
 from dataclasses import fields
+from geoguessr.user import PlayerData
 from geoguessr.game import GeoguessrDuelGame, GeoguessrChallengeGame, GameType
 
 class Geoguessr:
-    def __init__(self, username: str, ncfa_cookie: str, max_games=50) -> None:
+    def __init__(self, username: str, ncfa_cookie: str, last_challenge_seed: str, last_duel_id: str, max_games: int = 50) -> None:
         self.username = username
         self.ncfa_cookie = ncfa_cookie
         self.user_id = self._get_userID()
@@ -16,8 +17,10 @@ class Geoguessr:
         self.ranked_duel_games = []
         self.ranked_team_duel_games = {}
 
-        print(f"Fetching games for user '{self.username}' (ID: {self.user_id})")
-        self._get_games(max_games=max_games)
+        print(f"Fetching games for user '{self.username}' (ID: {self.user_id}) since last challenge seed '{last_challenge_seed}' and last duel ID '{last_duel_id}'...")
+        self._get_games(last_challenge_seed=last_challenge_seed,
+                        last_duel_id=last_duel_id,
+                        max_games=max_games)
         print("Converting user IDs to usernames...")
         self._convert_ids_to_usernames()
         return
@@ -141,23 +144,31 @@ class Geoguessr:
         safe_username = "".join(c for c in safe_username if c.isalnum() or c == "_")
         return safe_username
 
-    def _get_games(self, max_games=1000):
+    def _get_games(self, last_challenge_seed, last_duel_id, max_games=1000):
         """
-        Return a dictionary containing a list of games for each game type
+        Return a dictionary containing a list of games for each game type since the last seen IDs
         """
         games = {GameType.DAILY_CHALLENGE: [], GameType.RANKED_DUELS: [], GameType.RANKED_TEAM_DUELS: []}
         token = ""
         total_game_ids = 0
         # Use tqdm to show progress of fetching game IDs
-        with tqdm(total=max_games, desc="Fetching game IDs") as pbar:
-            while total_game_ids < max_games and token is not None:
-                temp_games, token = self._get_game_ids_page(token)
-                for type in games.keys():
-                    prev_count = len(games[type])
-                    games[type].extend(temp_games[type])
-                    # Update progress bar by the number of new games added
-                    pbar.update(len(games[type]) - prev_count)
-                total_game_ids = sum(len(games[type]) for type in games.keys())
+        while total_game_ids < max_games and token is not None:
+            temp_games, token = self._get_game_ids_page(token)            
+            for type in games.keys():
+                for game in temp_games[type]:
+                    if type == GameType.DAILY_CHALLENGE:
+                        # For daily challenges, check the challenge_token
+                        if game.challenge_token == last_challenge_seed:
+                            token = None
+                            break
+                    else:
+                        # For duels, check the game_id
+                        if game == last_duel_id:
+                            token = None
+                            break
+                    if token is not None:
+                        games[type].append(game)
+                        total_game_ids += 1
         
         self.daily_challenge_games = games[GameType.DAILY_CHALLENGE]
 

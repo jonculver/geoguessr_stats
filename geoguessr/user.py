@@ -2,9 +2,9 @@ import os
 import sys
 import json
 
-from game import GeoguessrDuelGame, GeoguessrChallengeGame, GameType
+from geoguessr.game import GeoguessrDuelGame, GeoguessrChallengeGame, GameType
 
-class User:
+class PlayerData:
     def __init__(self, username: str):
         self.username = username
         self.daily_challenge_games: list[GeoguessrChallengeGame] = []
@@ -61,12 +61,40 @@ class User:
                     games.append(GeoguessrDuelGame.from_json(item))
                 self.ranked_team_duel_games[teammate] = games
 
+    def last_challenge_seed(self) -> str:
+        """
+        Return the challenge_token of the most recent daily challenge game, or empty string if none
+        """
+        if not self.daily_challenge_games:
+            return ""
+        # Assuming games are in chronological order, return the latest
+        return self.daily_challenge_games[0].challenge_token
+    
+    def last_duel_id(self) -> str:
+        """
+        Return the game_id of the most recent ranked duel game or ranked team duel game, or empty string if none
+        """
+        # Find the most recent duel game for each mode and each team mate then take the most recent of those
+        last_id = ""
+        last_time = None
+        if self.ranked_duel_games:
+            last_id = self.ranked_duel_games[0].game_id
+            last_time = self.ranked_duel_games[0].start_time
+
+        for game_list in self.ranked_team_duel_games.values():
+            id = game_list[0].game_id
+            time = game_list[0].start_time
+            if not last_time or time > last_time:
+                last_id = id
+                last_time = time
+        return last_id
+
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Usage: python geoguessr/user.py USERNAME")
         sys.exit(1)
     user = sys.argv[1]
-    geouser = User(user)
+    geouser = PlayerData(user)
 
     print(f"User: {geouser.username}")
     print(f"  Daily Challenge Games: {len(geouser.daily_challenge_games)}")

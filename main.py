@@ -2,11 +2,13 @@ import json
 import argparse
 import os
 from geoguessr.geoguessr import Geoguessr
+from geoguessr.user import PlayerData
 
 def main():
     parser = argparse.ArgumentParser(description="Fetch GeoGuessr games for a user.")
     parser.add_argument("username", type=str, help="Username to fetch token for")
-    parser.add_argument("--max-games", type=int, default=50, help="Maximum number of games to query (default: 50)")
+    parser.add_argument("--max-games", type=int, default=1000, help="Maximum number of games to query (default: 1000)")
+    parser.add_argument("--overwrite", action="store_true", help="Overwrite existing data files")
     args = parser.parse_args()
 
     username = args.username
@@ -19,24 +21,38 @@ def main():
         return
     token = users[username]
 
-    geo = Geoguessr(username, token, max_games=max_games)
+    if not args.overwrite:
+        user_data = PlayerData(username)
+    else:
+        user_data = PlayerData("")  # Empty data
 
+    geo = Geoguessr(username, token, user_data.last_challenge_seed(), user_data.last_duel_id(), max_games)
+
+    # Append player data to geo data to keep reverse chronological order
+    daily_challenge_games = geo.daily_challenge_games + user_data.daily_challenge_games
+    ranked_duels = geo.ranked_duel_games + user_data.ranked_duel_games
+    ranked_team_duels = {}
+
+    teammates = set(geo.ranked_team_duel_games.keys()).union(set(user_data.ranked_team_duel_games.keys()))
+    for teammate in teammates:
+        ranked_team_duels[teammate] = geo.ranked_team_duel_games.get(teammate, []) + user_data.ranked_team_duel_games.get(teammate, []) 
+        
     output_dir = "output"
     os.makedirs(output_dir, exist_ok=True)
 
     # Save Daily challenge and Duel games
-    print(f"Saving {len(geo.daily_challenge_games)} daily challenge games")
+    print(f"Saving {len(daily_challenge_games)} daily challenge games")
     dc_file = os.path.join(output_dir, f"{username}_daily_challenge.json")
     with open(dc_file, "w") as f:
-        json.dump(geo.daily_challenge_games, f, default=lambda o: o.__dict__, indent=2)
+        json.dump(daily_challenge_games, f, default=lambda o: o.__dict__, indent=2)
 
-    print(f"Saving {len(geo.ranked_duel_games)} ranked duel games")
+    print(f"Saving {len(ranked_duels)} ranked duel games")
     duel_file = os.path.join(output_dir, f"{username}_ranked_duels.json")
     with open(duel_file, "w") as f:
-        json.dump(geo.ranked_duel_games, f, default=lambda o: o.__dict__, indent=2)
+        json.dump(ranked_duels, f, default=lambda o: o.__dict__, indent=2)
 
     # Save Team Duel games separately for each teammate
-    for teammate, games in geo.ranked_team_duel_games.items():
+    for teammate, games in ranked_team_duels.items():
         print(f"Saving {len(games)} ranked team duel games with teammate '{teammate}'")
         team_duel_output_path = os.path.join(output_dir, f"{username}_{teammate}_ranked_team_duels.json")
         with open(team_duel_output_path, "w") as f:
