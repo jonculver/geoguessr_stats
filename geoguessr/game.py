@@ -40,6 +40,7 @@ class GeoguessrDuelGame:
     map: str
     rounds: list[GeoguessrDuelRound]
     opponents: list[str]
+    opponent_rating: int = 0
     rating_before: int = 0
     rating_after: int = 0
     game_mode_rating_before: int = 0
@@ -61,25 +62,36 @@ class GeoguessrDuelGame:
         for team in data.get('teams', []):
             home_team = False
             players = []
+            rating = 0
             for player in team.get('players', []):
+                progress = player.get('progressChange', {})
+                rating_progress = progress.get('rankedSystemProgress', {})
+                team_rating = progress.get('rankedTeamDuelsProgress', {})
                 if player.get('playerId') != player_id:
+                    # Record who we are playing with or against
                     players.append(player.get('playerId', ""))
+                    # For teammates or opponents just record the maximum rating before
+                    if rating_progress:
+                        rating = max(rating, rating_progress.get('ratingBefore', 0))
+                    elif team_rating:
+                        rating = max(rating, team_rating.get('ratingBefore', 0))                    
                 else:
+                    # For us record all the stats we have
                     home_team = True
-                    progress = player.get('progressChange', {})
-                    if not progress:
-                        continue
-                    rating_progress = progress.get('rankedSystemProgress', {})
-                    if not rating_progress:
-                        continue
-                    self.rating_before = rating_progress.get('ratingBefore', 0)
-                    self.rating_after = rating_progress.get('ratingAfter', 0)
-                    self.game_mode_rating_before = rating_progress.get('gameModeRatingBefore', 0)
-                    self.game_mode_rating_after = rating_progress.get('gameModeRatingAfter', 0)
+                    if rating_progress:
+                        self.rating_before = rating_progress.get('ratingBefore', 0)
+                        self.rating_after = rating_progress.get('ratingAfter', 0)
+                        self.game_mode_rating_before = rating_progress.get('gameModeRatingBefore', 0)
+                        self.game_mode_rating_after = rating_progress.get('gameModeRatingAfter', 0)
+                    elif team_rating:
+                        self.rating_before = team_rating.get('ratingBefore', 0)
+                        self.rating_after = team_rating.get('ratingAfter', 0)
+
             if home_team and len(players) == 1:
                 self.teammate = players[0]
             elif not home_team:
                 self.opponents = players
+                self.opponent_rating = rating
         return
 
     
