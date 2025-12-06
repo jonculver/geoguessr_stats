@@ -114,7 +114,9 @@ class Geoguessr:
         
         url = f"https://www.geoguessr.com/api/v3/users/{user_id}"
         raw_data = self._make_request(url)
-        username = raw_data.get('nick', user_id)
+        username = user_id
+        if isinstance(raw_data, dict):
+            username = raw_data.get('nick', user_id)
         self.userids_to_usernames[user_id] = username
         return username
     
