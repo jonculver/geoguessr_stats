@@ -49,17 +49,64 @@ class GeoguessrDuelGame:
     start_time: str = ""
     duration_secs: int = 0
 
-    def __init__(self, game_type: GameType, game_id: str, player_id: str, data: dict) -> None:
-        self.game_type = game_type
-        self.game_id = game_id
-        self.player_id = player_id
-        self.mode = self._get_mode(data)
+    @classmethod
+    def from_json(cls, data: dict) -> 'GeoguessrDuelGame':
+        """Create a GeoguessrDuelGame instance from a JSON object."""
+
+        game_type_str = data.get('game_type', 'Unknown')
+        
+        # Parse rounds
+        rounds = []
+        for round_data in data.get('rounds', []):
+            rounds.append(GeoguessrDuelRound(
+                country_code=round_data.get('country_code', ''),
+                time_secs=round_data.get('time_secs', 0),
+                distance_meters=round_data.get('distance_meters', 0),
+                score=round_data.get('score', 0),
+                damage_dealt=round_data.get('damage_dealt', 0),
+                damage_taken=round_data.get('damage_taken', 0),
+                guessed_first=round_data.get('guessed_first', False)
+            ))
+        
+        instance = cls(
+            game_type=game_type_str,
+            game_id=data.get('game_id', ''),
+            time=data.get('start_time', ''),
+            mode=data.get('mode', 'Unknown'),
+            map=data.get('map', ''),
+            rounds=rounds,
+            opponents=data.get('opponents', []),
+            opponent_rating=data.get('opponent_rating', 0),
+            rating_before=data.get('rating_before', 0),
+            rating_after=data.get('rating_after', 0),
+            game_mode_rating_before=data.get('game_mode_rating_before', 0),
+            game_mode_rating_after=data.get('game_mode_rating_after', 0),
+            teammate=data.get('teammate', ''),
+            start_time=data.get('start_time', ''),
+            duration_secs=data.get('duration_secs', 0)
+        )
+        instance.player_id = data.get('player_id', '')
+        return instance
+
+    @classmethod
+    def from_geoguessr_data(cls, game_type: GameType, game_id: str, player_id: str, data: dict) -> 'GeoguessrDuelGame':
+        instance = cls(
+            game_type=game_type,
+            game_id=game_id,
+            time="",
+            mode=GeoguessrDuelGame._get_mode(data),
+            map="",
+            rounds=[],
+            opponents=[]
+        )
+        instance.player_id = player_id
+        
         map_dict = data.get('options', {}).get('map', {})
         if map_dict:
-            self.map = map_dict.get('name', "")
+            instance.map = map_dict.get('name', "")
         else:
-            self.map = ""
-        self.rounds, self.start_time, self.duration_secs = self._get_rounds(data)
+            instance.map = ""
+        instance.rounds, instance.start_time, instance.duration_secs = instance._get_rounds(data)
 
         for team in data.get('teams', []):
             home_team = False
@@ -84,23 +131,24 @@ class GeoguessrDuelGame:
                     # For us record all the stats we have
                     home_team = True
                     if rating_progress:
-                        self.rating_before = rating_progress.get('ratingBefore', 0)
-                        self.rating_after = rating_progress.get('ratingAfter', 0)
-                        self.game_mode_rating_before = rating_progress.get('gameModeRatingBefore', 0)
-                        self.game_mode_rating_after = rating_progress.get('gameModeRatingAfter', 0)
+                        instance.rating_before = rating_progress.get('ratingBefore', 0)
+                        instance.rating_after = rating_progress.get('ratingAfter', 0)
+                        instance.game_mode_rating_before = rating_progress.get('gameModeRatingBefore', 0)
+                        instance.game_mode_rating_after = rating_progress.get('gameModeRatingAfter', 0)
                     elif team_rating:
-                        self.rating_before = team_rating.get('ratingBefore', 0)
-                        self.rating_after = team_rating.get('ratingAfter', 0)
+                        instance.rating_before = team_rating.get('ratingBefore', 0)
+                        instance.rating_after = team_rating.get('ratingAfter', 0)
 
             if home_team and len(players) == 1:
-                self.teammate = players[0]
+                instance.teammate = players[0]
             elif not home_team:
-                self.opponents = players
-                self.opponent_rating = rating
-        return
+                instance.opponents = players
+                instance.opponent_rating = rating
+        return instance
 
     
-    def _get_mode(self, data) -> GameMode:
+    @staticmethod
+    def _get_mode(data) -> GameMode:
         options = data.get('options', {})
         movement_options = options.get('movementOptions', {})
         forbid_moving = movement_options.get('forbidMoving', False)

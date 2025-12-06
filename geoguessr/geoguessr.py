@@ -52,7 +52,7 @@ class Geoguessr:
         raw_data = self._make_request(url)
         if raw_data is None:
             return None
-        return GeoguessrDuelGame(game_type, game_id, self.user_id, raw_data)
+        return GeoguessrDuelGame.from_geoguessr_data(game_type, game_id, self.user_id, raw_data)
     
     def _get_game_type(self, payload: dict) -> GameType:
         if "isDailyChallenge" in payload:
