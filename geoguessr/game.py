@@ -71,10 +71,13 @@ class GeoguessrDuelGame:
                     # Record who we are playing with or against
                     players.append(player.get('playerId', ""))
                     # For teammates or opponents just record the maximum rating before
+                    player_rating = 0
                     if rating_progress:
-                        rating = max(rating, rating_progress.get('ratingBefore', 0))
+                        player_rating = rating_progress.get('ratingBefore', 0)
                     elif team_rating:
-                        rating = max(rating, team_rating.get('ratingBefore', 0))                    
+                        player_rating = team_rating.get('ratingBefore', 0)
+                    if player_rating:
+                        rating = max(rating, player_rating)            
                 else:
                     # For us record all the stats we have
                     home_team = True

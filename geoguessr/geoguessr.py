@@ -7,10 +7,19 @@ from dataclasses import fields
 from geoguessr.game import GeoguessrDuelGame, GeoguessrChallengeGame, GameType
 
 class Geoguessr:
-    def __init__(self, username: str, ncfa_cookie: str) -> None:
+    def __init__(self, username: str, ncfa_cookie: str, max_games=50) -> None:
         self.username = username
         self.ncfa_cookie = ncfa_cookie
         self.user_id = self._get_userID()
+        self.userids_to_usernames = {}
+        self.daily_challenge_games = []
+        self.ranked_duel_games = []
+        self.ranked_team_duel_games = {}
+
+        print(f"Fetching games for user '{self.username}' (ID: {self.user_id})")
+        self._get_games(max_games=max_games)
+        #print("Converting user IDs to usernames...")
+        #self._convert_ids_to_usernames()
         return
 
     def _make_request(self, endpoint) -> None:
@@ -85,7 +94,39 @@ class Geoguessr:
                         games[game_type].append(game_id)
         return games, token
     
-    def get_games(self, max_games=1000) -> dict:
+    def _get_username(self, user_id: str) -> str:
+        """
+        Given a user ID, return the corresponding username
+        """
+        if user_id in self.userids_to_usernames:
+            return self.userids_to_usernames[user_id]
+        
+        url = f"https://www.geoguessr.com/api/v3/users/{user_id}"
+        raw_data = self._make_request(url)
+        username = raw_data.get('nick', user_id)
+        self.userids_to_usernames[user_id] = username
+        return username
+    
+    def _convert_ids_to_usernames(self):
+        """
+        For each game in ranked duel and team duels, convert user IDs to usernames
+        """
+        for game in self.ranked_duel_games:
+            game.opponents = [self._get_username(uid) for uid in game.opponents]
+        for _, games in self.ranked_team_duel_games.items():
+            for game in games:
+                game.opponents = [self._get_username(uid) for uid in game.opponents]
+    
+    def _username_to_filename(self, username: str) -> str:
+        """
+        Convert a username to a safe filename by replacing spaces with underscores
+        and restricting to alphanumeric characters and underscores
+        """
+        safe_username = username.replace(" ", "_")
+        safe_username = "".join(c for c in safe_username if c.isalnum() or c == "_")
+        return safe_username
+
+    def _get_games(self, max_games=1000):
         """
         Return a dictionary containing a list of games for each game type
         """
@@ -97,7 +138,9 @@ class Geoguessr:
             for type in games.keys():
                 games[type].extend(temp_games[type])
             total_game_ids = sum(len(games[type]) for type in games.keys())
-            print(f"Fetched {total_game_ids} game IDs so far. Next token: {token}")
+            print(f"Fetched {total_game_ids} game IDs so far")
+        
+        self.daily_challenge_games = games[GameType.DAILY_CHALLENGE]
 
         # For each duel game query the game data
         for type in [GameType.RANKED_DUELS, GameType.RANKED_TEAM_DUELS]:
@@ -109,6 +152,19 @@ class Geoguessr:
                     duel_games.append(duel_game)
             games[type] = duel_games
 
-        return games
+        self.ranked_duel_games = games[GameType.RANKED_DUELS]
+
+        # For team duels, group by teammate
+        team_duel_dict = {}
+        for game in games[GameType.RANKED_TEAM_DUELS]:
+            teammate = self._get_username(game.teammate)
+            game.teamate = teammate
+            safename = self._username_to_filename(teammate)
+
+            if safename not in team_duel_dict:
+                team_duel_dict[safename] = []
+            team_duel_dict[safename].append(game)
+
+        self.ranked_team_duel_games = team_duel_dict
 
     
