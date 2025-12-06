@@ -68,6 +68,19 @@ class Geoguessr:
             return GameType.RANKED_TEAM_DUELS
         return GameType.UNKNOWN
 
+    def _extract_game_data(self, games_dict, time, game_data: dict):
+        """ Given a dictionary of games and raw game data, extract the relevant game information """
+        game_type = self._get_game_type(game_data)
+        if game_type == GameType.DAILY_CHALLENGE:
+            challenge_token = game_data.get('challengeToken', "")
+            time = time
+            points = game_data.get('points', 0)
+            game = GeoguessrChallengeGame(game_type, time, challenge_token, points)
+            games_dict[GameType.DAILY_CHALLENGE].append(game)
+        elif game_type != GameType.UNKNOWN:
+            game_id = game_data.get('gameId', "")
+            games_dict[game_type].append(game_id)
+
     def _get_game_ids_page(self, pagination_token) -> tuple[dict, str]:
         """
         Return a dictionary containing a list of games for each game type and the next pagination token
@@ -78,20 +91,18 @@ class Geoguessr:
         entries = raw_data['entries']
         token = raw_data.get('paginationToken')
         for item in entries:
+            time = item.get('time', "")
             data = json.loads(item['payload'])
-            for activity in data:
-                if isinstance(activity, dict):
-                    game_data = activity.get('payload', {})
-                    game_id = game_data.get('gameId', "")
-                    time = activity.get('time', "")
-                    game_type = self._get_game_type(game_data)
-                    if game_type == GameType.DAILY_CHALLENGE:
-                        challenge_token = game_data.get('challengeToken', "")
-                        points = game_data.get('points', 0)
-                        game = GeoguessrChallengeGame(game_type, time, challenge_token, points)
-                        games[GameType.DAILY_CHALLENGE].append(game)
-                    elif game_type != GameType.UNKNOWN:
-                        games[game_type].append(game_id)
+            if isinstance(data, dict):
+                # A single instance where _this_ is the payload
+                self._extract_game_data(games, time, data)
+            elif isinstance(data, list):
+                # A list of several instances, each with their own time and payload
+                for activity in data:
+                    if isinstance(activity, dict):
+                        time = activity.get('time', "")
+                        payload = activity.get('payload', {})
+                        self._extract_game_data(games, time, payload)
         return games, token
     
     def _get_username(self, user_id: str) -> str:
