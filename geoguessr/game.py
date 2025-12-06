@@ -46,6 +46,8 @@ class GeoguessrDuelGame:
     game_mode_rating_before: int = 0
     game_mode_rating_after: int = 0
     teammate: str = ""
+    start_time: str = ""
+    duration_secs: int = 0
 
     def __init__(self, game_type: GameType, game_id: str, player_id: str, data: dict) -> None:
         self.game_type = game_type
@@ -57,7 +59,7 @@ class GeoguessrDuelGame:
             self.map = map_dict.get('name', "")
         else:
             self.map = ""
-        self.rounds = self._get_rounds(data)
+        self.rounds, self.start_time, self.duration_secs = self._get_rounds(data)
 
         for team in data.get('teams', []):
             home_team = False
@@ -110,7 +112,7 @@ class GeoguessrDuelGame:
         else:
             return GameMode.NO_MOVE
         
-    def _get_rounds(self, data: dict) -> list[GeoguessrDuelRound]:
+    def _get_rounds(self, data: dict) -> tuple[list[GeoguessrDuelRound], str, int]:
         """
         Build a list of GeoguessrDuelRound from raw game JSON.
 
@@ -118,6 +120,9 @@ class GeoguessrDuelGame:
         seconds for the round (end - timerStartTime), the player's
         distance in metres (rounded to int), the player's score (int)
         and the damage dealt by the player's team for that round (int).
+
+        Also return the start time for the first round and the time from
+        the start of the first round to the end of the last round in seconds.
         """
 
         def parse_iso(ts: str) -> datetime | None:
@@ -168,14 +173,23 @@ class GeoguessrDuelGame:
             for rr in opp_team.get('roundResults', []):
                 opponent_round_results[rr.get('roundNumber')] = rr
 
+        start_time: str = ""
+        start_time_iso: datetime | None = None
+        end_time_iso: datetime | None = None
+
         out: list[GeoguessrDuelRound] = []
         for r in data.get('rounds', []):
             rn = r.get('roundNumber')
             pano = r.get('panorama', {})
             country_code = pano.get('countryCode', '')
 
-            timer_start = parse_iso(r.get('startTime'))
+            round_start_time = r.get('startTime', "")
+            timer_start = parse_iso(round_start_time)
+            if not start_time_iso:
+                start_time_iso = timer_start
+                start_time = round_start_time
             end_time = parse_iso(r.get('endTime'))
+            end_time_iso = end_time
             if timer_start and end_time:
                 secs = (end_time - timer_start).total_seconds()
                 time_secs = to_int(secs)
@@ -224,5 +238,10 @@ class GeoguessrDuelGame:
                                           damage_dealt=damage_dealt,
                                           damage_taken=damage_taken,
                                           guessed_first=guessed_first))
+            
+        # Calculate total elapsed time
+        total_elapsed_secs = 0
+        if start_time_iso and end_time_iso:
+            total_elapsed_secs = int((end_time_iso - start_time_iso).total_seconds())
 
-        return out
+        return out, start_time, total_elapsed_secs
