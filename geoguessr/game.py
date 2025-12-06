@@ -39,11 +39,12 @@ class GeoguessrDuelGame:
     mode: GameMode
     map: str
     rounds: list[GeoguessrDuelRound]
+    opponents: list[str]
     rating_before: int = 0
     rating_after: int = 0
     game_mode_rating_before: int = 0
     game_mode_rating_after: int = 0
-
+    teammate: str = ""
 
     def __init__(self, game_type: GameType, game_id: str, player_id: str, data: dict) -> None:
         self.game_type = game_type
@@ -58,8 +59,13 @@ class GeoguessrDuelGame:
         self.rounds = self._get_rounds(data)
 
         for team in data.get('teams', []):
+            home_team = False
+            players = []
             for player in team.get('players', []):
-                if player.get('playerId') == player_id:
+                if player.get('playerId') != player_id:
+                    players.append(player.get('playerId', ""))
+                else:
+                    home_team = True
                     progress = player.get('progressChange', {})
                     if not progress:
                         continue
@@ -70,6 +76,10 @@ class GeoguessrDuelGame:
                     self.rating_after = rating_progress.get('ratingAfter', 0)
                     self.game_mode_rating_before = rating_progress.get('gameModeRatingBefore', 0)
                     self.game_mode_rating_after = rating_progress.get('gameModeRatingAfter', 0)
+            if home_team and len(players) == 1:
+                self.teammate = players[0]
+            elif not home_team:
+                self.opponents = players
         return
 
     
