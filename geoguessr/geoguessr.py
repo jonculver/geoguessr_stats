@@ -2,7 +2,7 @@
 
 import requests
 import json
-
+from tqdm import tqdm
 from dataclasses import fields
 from geoguessr.game import GeoguessrDuelGame, GeoguessrChallengeGame, GameType
 
@@ -18,8 +18,8 @@ class Geoguessr:
 
         print(f"Fetching games for user '{self.username}' (ID: {self.user_id})")
         self._get_games(max_games=max_games)
-        #print("Converting user IDs to usernames...")
-        #self._convert_ids_to_usernames()
+        print("Converting user IDs to usernames...")
+        self._convert_ids_to_usernames()
         return
 
     def _make_request(self, endpoint) -> None:
@@ -153,11 +153,11 @@ class Geoguessr:
         
         self.daily_challenge_games = games[GameType.DAILY_CHALLENGE]
 
-        # For each duel game query the game data
+        # For each duel game query the game data. Use a progress bar for this slow step
         for type in [GameType.RANKED_DUELS, GameType.RANKED_TEAM_DUELS]:
             duel_game_ids = games[type]
             duel_games = []
-            for game_id in duel_game_ids:
+            for game_id in tqdm(duel_game_ids, desc=f"Querying {type} data"):
                 duel_game = self._query_game_data(type, game_id)
                 if duel_game is not None:
                     duel_games.append(duel_game)
