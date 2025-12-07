@@ -21,26 +21,47 @@ class RankedDuelsSummary:
     max_rating: int
     max_rating_time: str
 
+    def __str__(self):
+        return ("\n  ".join([
+            f"Total Games: {self.total_games}",
+            f"  Moving: {self.total_moving}",
+            f"  No Move: {self.total_no_move}",
+            f"  NMPZ: {self.total_nmpz}",
+            f"Wins: {self.wins}",
+            f"Losses: {self.losses}",
+            f"Mean Duration (secs): {self.mean_duration_secs}",
+            f"Last Rating: {self.last_rating}",
+            f"Max Rating: {self.max_rating} at {self.max_rating_time}"
+        ]))
+
     @classmethod
     def from_games(cls, games: list[GeoguessrDuelGame]) -> 'RankedDuelsSummary':
         """
         Create a RankedDuelsSummary instance from a list of duel games.
         """
         if not games:
-            return cls(0, 0, 0, 0, 0, 0, 0, 0, "")
+            return cls(0, 0, 0, 0, 0, 0, 0, 0, 0, "")
         
         total_games = len(games)
         total_moving = sum(1 for game in games if game.mode == GameMode.MOVING)
         total_no_move = sum(1 for game in games if game.mode == GameMode.NO_MOVE)
         total_nmpz = sum(1 for game in games if game.mode == GameMode.NMPZ)
-        wins = sum(1 for game in games if game.rating_after > game.rating_before)
+        wins = sum(1 for game in games if game.won)
         losses = total_games - wins
         total_duration = sum(game.duration_secs for game in games)
         mean_duration_secs = total_duration // total_games
-        last_rating = games[0].rating_after
-        max_rating_game = max(games, key=lambda g: g.rating_after)
-        max_rating = max_rating_game.rating_after
-        max_rating_time = max_rating_game.start_time
+        
+        # Handle games with null ratings gracefully
+        games_with_ratings = [g for g in games if g.rating_after is not None]
+        if games_with_ratings:
+            last_rating = games_with_ratings[0].rating_after
+            max_rating_game = max(games_with_ratings, key=lambda g: g.rating_after)
+            max_rating = max_rating_game.rating_after
+            max_rating_time = max_rating_game.start_time
+        else:
+            last_rating = 0
+            max_rating = 0
+            max_rating_time = ""
 
         return cls(
             total_games=total_games,

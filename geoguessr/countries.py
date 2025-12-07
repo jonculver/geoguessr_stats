@@ -10,6 +10,7 @@ class CountryStats:
     name: str
     total_rounds: int
     rounds_won: int
+    win_percentage: int
     rounds_guessed_first: int
     total_damage_dealt: int
     total_damage_taken: int
@@ -29,6 +30,7 @@ class CountryStats:
             name=country_code_to_name(country_code),
             total_rounds=len(rounds),
             rounds_won=0,
+            win_percentage=0,
             rounds_guessed_first=0,
             total_damage_dealt=0,
             total_damage_taken=0,

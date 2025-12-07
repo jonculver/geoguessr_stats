@@ -38,6 +38,7 @@ class GeoguessrDuelGame:
     time: str
     mode: GameMode
     map: str
+    won: bool
     rounds: list[GeoguessrDuelRound]
     opponents: list[str]
     opponent_rating: int = 0
@@ -89,6 +90,7 @@ class GeoguessrDuelGame:
             time=data.get('start_time', ''),
             mode=mode,
             map=data.get('map', ''),
+            won=data.get('won', False),
             rounds=rounds,
             opponents=data.get('opponents', []),
             opponent_rating=data.get('opponent_rating', 0),
@@ -111,6 +113,7 @@ class GeoguessrDuelGame:
             time="",
             mode=GeoguessrDuelGame._get_mode(data),
             map="",
+            won=False,
             rounds=[],
             opponents=[]
         )
@@ -123,6 +126,8 @@ class GeoguessrDuelGame:
             instance.map = ""
         instance.rounds, instance.start_time, instance.duration_secs = instance._get_rounds(data)
 
+        home_team_id = ""
+
         for team in data.get('teams', []):
             home_team = False
             players = []
@@ -130,7 +135,11 @@ class GeoguessrDuelGame:
             for player in team.get('players', []):
                 progress = player.get('progressChange', {})
                 rating_progress = progress.get('rankedSystemProgress', {})
-                team_rating = progress.get('rankedTeamDuelsProgress', {})
+                if not rating_progress:
+                    rating_progress = progress.get('competitiveProgress', {})
+                if not rating_progress:
+                    rating_progress = progress.get('rankedTeamDuelsProgress', {})
+
                 if player.get('playerId') != player_id:
                     # Record who we are playing with or against
                     players.append(player.get('playerId', ""))
@@ -138,21 +147,15 @@ class GeoguessrDuelGame:
                     player_rating = 0
                     if rating_progress:
                         player_rating = rating_progress.get('ratingBefore', 0)
-                    elif team_rating:
-                        player_rating = team_rating.get('ratingBefore', 0)
                     if player_rating:
                         rating = max(rating, player_rating)            
                 else:
                     # For us record all the stats we have
                     home_team = True
+                    instance.won = data.get('result', {}).get('winningTeamId', "") == team.get('id', "")
                     if rating_progress:
                         instance.rating_before = rating_progress.get('ratingBefore', 0)
                         instance.rating_after = rating_progress.get('ratingAfter', 0)
-                        instance.game_mode_rating_before = rating_progress.get('gameModeRatingBefore', 0)
-                        instance.game_mode_rating_after = rating_progress.get('gameModeRatingAfter', 0)
-                    elif team_rating:
-                        instance.rating_before = team_rating.get('ratingBefore', 0)
-                        instance.rating_after = team_rating.get('ratingAfter', 0)
 
             if home_team and len(players) == 1:
                 instance.teammate = players[0]
@@ -247,6 +250,9 @@ class GeoguessrDuelGame:
             country_code = pano.get('countryCode', '')
 
             round_start_time = r.get('startTime', "")
+            # Sometimes there seem to be extra rounds that never happend so skip these
+            if not round_start_time:
+                continue
             timer_start = parse_iso(round_start_time)
             if not start_time_iso:
                 start_time_iso = timer_start

@@ -1,11 +1,12 @@
 # GeoGuessr Stats Collector
 
-This tool collects and analyzes game data from GeoGuessr for a specified user. It fetches game history, including daily challenges, ranked duels, and team duels, and saves the results to a JSON file for further analysis.
+This tool collects and analyzes game data from GeoGuessr for a specified user. It fetches game history, including daily challenges, ranked duels, and team duels, and saves the results to JSON files for further analysis.
 
 ## Features
 - Fetches game data for a user from GeoGuessr
 - Supports daily challenges, ranked duels, and team duels
 - Progress bars for long-running data collection steps
+- Displays player statistics and summaries
 - Outputs results to an organized JSON file in the `output` directory
 
 ## Installation
@@ -43,21 +44,61 @@ For every user to collect stats for find their token as follows:
 
 ## Usage
 
-Run the tool to collect data:
+The tool provides a command-line interface with multiple subcommands:
+
+### Fetch Game Data
+
+Collect game data for a user:
 ```bash
-python main.py <username> --max-games <number>
+python -m geoguessr fetch <username> [--max-games <number>] [--overwrite]
 ```
 - `<username>`: The username as listed in `users.json`
-- `--max-games <number>`: (Optional) Maximum number of games to fetch (default: 50)
+- `--max-games <number>`: (Optional) Maximum number of games to fetch (default: 1000)
+- `--overwrite`: (Optional) Overwrite existing data files instead of appending
+
+**Example:**
+```bash
+python -m geoguessr fetch Draig --max-games 100
+```
+
+### Display Player Statistics
+
+Show statistics and summaries for a player:
+```bash
+python -m geoguessr display <player> [-t <teammate>] [-c <country>] [-m <game-mode>]
+```
+- `<player>`: Player name to display stats for
+- `-t, --teammate <name>`: (Optional) Show stats for team duels with a specific teammate
+- `-c, --country <code>`: (Optional) Show stats for a specific country (2-letter code or full name)
+- `-m, --game-mode <mode>`: (Optional) Filter by game mode: `Moving`, `NoMove`, or `NMPZ`
+
+**Examples:**
+```bash
+# Show overall ranked duel summary
+python -m geoguessr display Draig
+
+# Show team duel summary with a teammate
+python -m geoguessr display Draig -t Juliette
+
+# Show country-specific stats
+python -m geoguessr display Draig -c US
+
+# Show stats filtered by game mode
+python -m geoguessr display Draig -m Moving
+```
 
 ### Output
-Results are saved in the `output` folder as `<username>_games.json`.
+Results are saved in the `output` folder:
+- `<username>_daily_challenge.json`: Daily challenge games
+- `<username>_ranked_duels.json`: Solo ranked duel games
+- `<username>_<teammate>_ranked_team_duels.json`: Team duel games with each teammate
 
-## Example
+## Backward Compatibility
+
+For backward compatibility, you can still use the old command format:
 ```bash
-python main.py Draig --max-games 100
+python main.py fetch <username> --max-games <number>
 ```
-This will fetch up to 100 games for the user `Draig` and save the results in the `output/` folder
 
 ## Notes
 - Ensure your GeoGuessr token is valid and up to date in `users.json`.
