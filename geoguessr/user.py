@@ -88,6 +88,14 @@ class PlayerData:
         self._get_ranked_duel_games()
         self._get_ranked_team_duel_games()
 
+    def __str__(self):
+        return "  \n".join([
+            f"PlayerData for {self.username}:",
+            f"  Daily Challenge Games: {len(self.daily_challenge_games)}",
+            f"  Ranked Duel Games: {len(self.ranked_duel_games)}",
+            f"  Ranked Team Duel Games: {', '.join([f'{teammate}: {len(games)}' for teammate, games in self.ranked_team_duel_games.items()])}"
+        ])
+
     def _get_daily_challenge_games(self):
         """
         Read data from output/USERNAME_daily_challenge.json and populate daily_challenge_games
@@ -123,9 +131,6 @@ class PlayerData:
         Read data from output/USERNAME_TEAMMATE_ranked_team_duels.json and populate ranked_team_duel_games
         """
         dirpath = "output"
-        # Ensure the output directory exists (create if missing) so callers can write into it
-        os.makedirs(dirpath, exist_ok=True)
-
         for filename in os.listdir(dirpath):
             if filename.startswith(f"{self.username}_") and filename.endswith("_ranked_team_duels.json"):
                 teammate = filename[len(self.username)+1:-len("_ranked_team_duels.json")]
