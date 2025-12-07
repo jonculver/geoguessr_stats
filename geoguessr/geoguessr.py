@@ -7,8 +7,10 @@ from dataclasses import fields
 from geoguessr.user import PlayerData
 from geoguessr.game import GeoguessrDuelGame, GeoguessrChallengeGame, GameType
 
+USERNAME_MAP_FILE = "output/username_map.json"
+
 class Geoguessr:
-    def __init__(self, username: str, ncfa_cookie: str, last_challenge_seed: str, last_duel_id: str, max_games: int = 50) -> None:
+    def __init__(self, username: str, ncfa_cookie: str, last_challenge_seed: str, last_ranked_duel_id: str, last_team_duel_id: str, max_games: int = 50) -> None:
         self.username = username
         self.ncfa_cookie = ncfa_cookie
         self.user_id = self._get_userID()
@@ -17,12 +19,15 @@ class Geoguessr:
         self.ranked_duel_games = []
         self.ranked_team_duel_games = {}
 
-        print(f"Fetching games for user '{self.username}' (ID: {self.user_id}) since last challenge seed '{last_challenge_seed}' and last duel ID '{last_duel_id}'...")
+        print(f"Fetching games for user '{self.username}' (ID: {self.user_id}) since last challenge seed '{last_challenge_seed}', last ranked duel ID '{last_ranked_duel_id}', and last team duel ID '{last_team_duel_id}'...")
         self._get_games(last_challenge_seed=last_challenge_seed,
-                        last_duel_id=last_duel_id,
+                        last_ranked_duel_id=last_ranked_duel_id,
+                        last_team_duel_id=last_team_duel_id,
                         max_games=max_games)
         print("Converting user IDs to usernames...")
+        self._load_username_map()
         self._convert_ids_to_usernames()
+        self._save_username_map()
         return
 
     def _make_request(self, endpoint) -> None:
@@ -64,10 +69,11 @@ class Geoguessr:
         if not game_id:
             return GameType.UNKNOWN       
         game_mode = payload.get('gameMode', "")
+        competitive_modes = ["StandardDuels", "NoMoveDuels", "NmpzDuels"]
         competitive_mode = payload.get('competitiveGameMode', "")
-        if game_mode == "Duels" and competitive_mode == "StandardDuels":
+        if game_mode == "Duels" and competitive_mode in competitive_modes:
             return GameType.RANKED_DUELS
-        elif game_mode == "TeamDuels" and competitive_mode == "StandardDuels":
+        elif game_mode == "TeamDuels" and competitive_mode in competitive_modes:
             return GameType.RANKED_TEAM_DUELS
         return GameType.UNKNOWN
 
@@ -123,6 +129,23 @@ class Geoguessr:
         self.userids_to_usernames[user_id] = username
         return username
     
+    def _load_username_map(self):
+        """
+        Load the username map from the JSON file if it exists
+        """
+        try:
+            with open(USERNAME_MAP_FILE, "r", encoding="utf-8") as f:
+                self.userids_to_usernames = json.load(f)
+        except FileNotFoundError:
+            self.userids_to_usernames = {}
+
+    def _save_username_map(self):
+        """
+        Save the username map to the JSON file
+        """
+        with open(USERNAME_MAP_FILE, "w", encoding="utf-8") as f:
+            json.dump(self.userids_to_usernames, f, indent=2)
+    
     def _convert_ids_to_usernames(self):
         """
         For each game in ranked duel and team duels, convert user IDs to usernames
@@ -144,32 +167,53 @@ class Geoguessr:
         safe_username = "".join(c for c in safe_username if c.isalnum() or c == "_")
         return safe_username
 
-    def _get_games(self, last_challenge_seed, last_duel_id, max_games=1000):
+    def _get_games(self, last_challenge_seed, last_ranked_duel_id, last_team_duel_id, max_games=1000):
         """
         Return a dictionary containing a list of games for each game type since the last seen IDs
         """
         games = {GameType.DAILY_CHALLENGE: [], GameType.RANKED_DUELS: [], GameType.RANKED_TEAM_DUELS: []}
+        # Track which game types have found their last game
+        complete_types = {GameType.DAILY_CHALLENGE: False, GameType.RANKED_DUELS: False, GameType.RANKED_TEAM_DUELS: False}
         token = ""
         total_game_ids = 0
         # Use tqdm to show progress of fetching game IDs
         while total_game_ids < max_games and token is not None:
-            temp_games, token = self._get_game_ids_page(token)            
-            for type in games.keys():
-                for game in temp_games[type]:
-                    if type == GameType.DAILY_CHALLENGE:
-                        # For daily challenges, check the challenge_token
+            temp_games, token = self._get_game_ids_page(token)
+            
+            for game_type in games.keys():
+                # Skip if we've already found the last game for this type
+                if complete_types[game_type]:
+                    continue
+                    
+                for game in temp_games[game_type]:
+                    # Check if this is the last game we already have
+                    if game_type == GameType.DAILY_CHALLENGE:
                         if game.challenge_token == last_challenge_seed:
-                            token = None
+                            complete_types[game_type] = True
                             break
-                    else:
-                        # For duels, check the game_id
-                        if game == last_duel_id:
-                            token = None
+                    elif game_type == GameType.RANKED_DUELS:
+                        if game == last_ranked_duel_id:
+                            complete_types[game_type] = True
                             break
-                    if token is not None:
-                        games[type].append(game)
-                        total_game_ids += 1
+                    elif game_type == GameType.RANKED_TEAM_DUELS:
+                        if game == last_team_duel_id:
+                            complete_types[game_type] = True
+                            break
+                    
+                    # Add the game and increment counter
+                    games[game_type].append(game)
+                    total_game_ids += 1
+                    
+                    # Check if we've hit the max games limit
+                    if total_game_ids >= max_games:
+                        complete_types[game_type] = True
+                        break
+            
+            # Stop if all game types are complete
+            if all(complete_types.values()):
+                break
         
+        print(f"Found {len(games[GameType.DAILY_CHALLENGE])} new daily challenge games, {len(games[GameType.RANKED_DUELS])} new ranked duel games, and {len(games[GameType.RANKED_TEAM_DUELS])} new ranked team duel games. ")
         self.daily_challenge_games = games[GameType.DAILY_CHALLENGE]
 
         # For each duel game query the game data. Use a progress bar for this slow step

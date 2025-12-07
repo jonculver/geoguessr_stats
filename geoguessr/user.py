@@ -143,23 +143,27 @@ class PlayerData:
         # Assuming games are in chronological order, return the latest
         return self.daily_challenge_games[0].challenge_token
     
-    def last_duel_id(self) -> str:
+    def last_ranked_duel_id(self) -> str:
         """
-        Return the game_id of the most recent ranked duel game or ranked team duel game, or empty string if none
+        Return the game_id of the most recent ranked duel game, or empty string if none
         """
-        # Find the most recent duel game for each mode and each team mate then take the most recent of those
+        if not self.ranked_duel_games:
+            return ""
+        return self.ranked_duel_games[0].game_id
+    
+    def last_team_duel_id(self) -> str:
+        """
+        Return the game_id of the most recent ranked team duel game, or empty string if none
+        """
         last_id = ""
         last_time = None
-        if self.ranked_duel_games:
-            last_id = self.ranked_duel_games[0].game_id
-            last_time = self.ranked_duel_games[0].start_time
-
         for game_list in self.ranked_team_duel_games.values():
-            id = game_list[0].game_id
-            time = game_list[0].start_time
-            if not last_time or time > last_time:
-                last_id = id
-                last_time = time
+            if game_list:
+                id = game_list[0].game_id
+                time = game_list[0].start_time
+                if not last_time or time > last_time:
+                    last_id = id
+                    last_time = time
         return last_id
     
     def get_country_rounds(self, teammate: str|None = None, mode: GameMode|None = None) -> dict[str: list[GeoguessrDuelRound]]:

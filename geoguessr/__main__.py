@@ -32,7 +32,7 @@ def fetch_command(args):
     else:
         user_data = PlayerData("")  # Empty data
 
-    geo = Geoguessr(username, token, user_data.last_challenge_seed(), user_data.last_duel_id(), max_games)
+    geo = Geoguessr(username, token, user_data.last_challenge_seed(), user_data.last_ranked_duel_id(), user_data.last_team_duel_id(), max_games)
 
     # Append player data to geo data to keep reverse chronological order
     daily_challenge_games = geo.daily_challenge_games + user_data.daily_challenge_games
