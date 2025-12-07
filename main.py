@@ -1,8 +1,15 @@
 import json
 import argparse
 import os
+from enum import Enum
 from geoguessr.geoguessr import Geoguessr
 from geoguessr.user import PlayerData
+
+def enum_serializer(obj):
+    """Custom JSON serializer for objects containing enums."""
+    if isinstance(obj, Enum):
+        return obj.value
+    return obj.__dict__
 
 def main():
     parser = argparse.ArgumentParser(description="Fetch GeoGuessr games for a user.")
@@ -44,19 +51,19 @@ def main():
     print(f"Saving {len(daily_challenge_games)} daily challenge games")
     dc_file = os.path.join(output_dir, f"{username}_daily_challenge.json")
     with open(dc_file, "w") as f:
-        json.dump(daily_challenge_games, f, default=lambda o: o.__dict__, indent=2)
+        json.dump(daily_challenge_games, f, default=enum_serializer, indent=2)
 
     print(f"Saving {len(ranked_duels)} ranked duel games")
     duel_file = os.path.join(output_dir, f"{username}_ranked_duels.json")
     with open(duel_file, "w") as f:
-        json.dump(ranked_duels, f, default=lambda o: o.__dict__, indent=2)
+        json.dump(ranked_duels, f, default=enum_serializer, indent=2)
 
     # Save Team Duel games separately for each teammate
     for teammate, games in ranked_team_duels.items():
         print(f"Saving {len(games)} ranked team duel games with teammate '{teammate}'")
         team_duel_output_path = os.path.join(output_dir, f"{username}_{teammate}_ranked_team_duels.json")
         with open(team_duel_output_path, "w") as f:
-            json.dump(games, f, default=lambda o: o.__dict__, indent=2)
+            json.dump(games, f, default=enum_serializer, indent=2)
 
 
 if __name__ == "__main__":

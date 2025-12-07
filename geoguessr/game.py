@@ -1,18 +1,17 @@
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
 
-@dataclass()
-class GameType:
-    RANKED_DUELS: str = "Duels"
-    RANKED_TEAM_DUELS: str = "TeamDuels"
-    DAILY_CHALLENGE: str = "DailyChallenge"
-    UNKNOWN: str = "Unknown"
+class GameType(str, Enum):
+    RANKED_DUELS = "Duels"
+    RANKED_TEAM_DUELS = "TeamDuels"
+    DAILY_CHALLENGE = "DailyChallenge"
+    UNKNOWN = "Unknown"
 
-@dataclass()
-class GameMode:
-    MOVING: str = "Moving"
-    NO_MOVE: str = "NoMove"
-    NMPZ: str = "NMPZ"
+class GameMode(str, Enum):
+    MOVING = "Moving"
+    NO_MOVE = "NoMove"
+    NMPZ = "NMPZ"
 
 @dataclass()
 class GeoguessrChallengeGame:
@@ -24,6 +23,7 @@ class GeoguessrChallengeGame:
 @dataclass()
 class GeoguessrDuelRound:
     country_code: str
+    start_time: str
     time_secs: int
     distance_meters: int
     score: int
@@ -54,12 +54,27 @@ class GeoguessrDuelGame:
         """Create a GeoguessrDuelGame instance from a JSON object."""
 
         game_type_str = data.get('game_type', 'Unknown')
+        # Convert string to GameType enum
+        try:
+            game_type = GameType(game_type_str)
+        except ValueError:
+            game_type = GameType.UNKNOWN
+        
+        mode_str = data.get('mode', 'Unknown')
+        # Convert string to GameMode enum
+        try:
+            mode = GameMode(mode_str)
+        except ValueError:
+            mode = GameMode.MOVING
+        
+        game_start_time = data.get('start_time', '')
         
         # Parse rounds
         rounds = []
         for round_data in data.get('rounds', []):
             rounds.append(GeoguessrDuelRound(
                 country_code=round_data.get('country_code', ''),
+                start_time=round_data.get('start_time', game_start_time),
                 time_secs=round_data.get('time_secs', 0),
                 distance_meters=round_data.get('distance_meters', 0),
                 score=round_data.get('score', 0),
@@ -69,10 +84,10 @@ class GeoguessrDuelGame:
             ))
         
         instance = cls(
-            game_type=game_type_str,
+            game_type=game_type,
             game_id=data.get('game_id', ''),
             time=data.get('start_time', ''),
-            mode=data.get('mode', 'Unknown'),
+            mode=mode,
             map=data.get('map', ''),
             rounds=rounds,
             opponents=data.get('opponents', []),
@@ -280,6 +295,7 @@ class GeoguessrDuelGame:
                 guessed_first = False
 
             out.append(GeoguessrDuelRound(country_code=country_code,
+                                          start_time=round_start_time,
                                           time_secs=time_secs,
                                           distance_meters=distance_meters,
                                           score=score,
