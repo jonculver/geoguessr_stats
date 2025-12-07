@@ -26,6 +26,9 @@ def fetch_command(args):
         print(f"Username '{username}' not found in users.json.")
         return
     token = users[username]
+    # Ensure output directory exists before any code that may read it
+    output_dir = "output"
+    os.makedirs(output_dir, exist_ok=True)
 
     if not args.overwrite:
         user_data = PlayerData(username)
@@ -43,8 +46,7 @@ def fetch_command(args):
     for teammate in teammates:
         ranked_team_duels[teammate] = geo.ranked_team_duel_games.get(teammate, []) + user_data.ranked_team_duel_games.get(teammate, []) 
         
-    output_dir = "output"
-    os.makedirs(output_dir, exist_ok=True)
+    # `output_dir` already created above
 
     # Save Daily challenge and Duel games
     print(f"Saving {len(daily_challenge_games)} daily challenge games")

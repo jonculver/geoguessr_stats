@@ -24,20 +24,28 @@ class CountryStats:
         """
         Create a CountryStats instance from a list of duel rounds.
         """
-        # @@@ TODO: Implement this
+        rounds_won = sum(1 for round in rounds if round.damage_dealt > 0)
+        win_percentage = (rounds_won * 100) // len(rounds) if rounds else 0
+        rounds_guessed_first = sum(1 for round in rounds if round.guessed_first)
+        total_damage_dealt = sum(round.damage_dealt for round in rounds)
+        total_damage_taken = sum(round.damage_taken for round in rounds)
+        mean_distance = sum(round.distance_meters for round in rounds) // len(rounds) if rounds else 0
+        mean_time = sum(round.time_secs for round in rounds) // len(rounds) if rounds else 0
+        mean_time_guessed_first = sum(round.time_secs for round in rounds if round.guessed_first) // rounds_guessed_first if rounds_guessed_first else 0
+        mean_time_guessed_second = sum(round.time_secs for round in rounds if not round.guessed_first) // (len(rounds) - rounds_guessed_first) if (len(rounds) - rounds_guessed_first) else 0
         return cls(
             country_code=country_code,
             name=country_code_to_name(country_code),
             total_rounds=len(rounds),
-            rounds_won=0,
-            win_percentage=0,
-            rounds_guessed_first=0,
-            total_damage_dealt=0,
-            total_damage_taken=0,
-            mean_distance=0,
-            mean_time=0,
-            mean_time_guessed_first=0,
-            mean_time_guessed_second=0
+            rounds_won=rounds_won,
+            win_percentage=win_percentage,
+            rounds_guessed_first=rounds_guessed_first,
+            total_damage_dealt=total_damage_dealt,
+            total_damage_taken=total_damage_taken,
+            mean_distance=mean_distance,
+            mean_time=mean_time,
+            mean_time_guessed_first=mean_time_guessed_first,
+            mean_time_guessed_second=mean_time_guessed_second
         )
         
 

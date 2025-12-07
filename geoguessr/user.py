@@ -123,6 +123,9 @@ class PlayerData:
         Read data from output/USERNAME_TEAMMATE_ranked_team_duels.json and populate ranked_team_duel_games
         """
         dirpath = "output"
+        # Ensure the output directory exists (create if missing) so callers can write into it
+        os.makedirs(dirpath, exist_ok=True)
+
         for filename in os.listdir(dirpath):
             if filename.startswith(f"{self.username}_") and filename.endswith("_ranked_team_duels.json"):
                 teammate = filename[len(self.username)+1:-len("_ranked_team_duels.json")]
