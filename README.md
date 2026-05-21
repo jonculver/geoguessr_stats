@@ -13,8 +13,14 @@ This tool collects and analyzes game data from GeoGuessr for a specified user. I
 
 ### 1. Create and activate a Python virtual environment
 ```bash
+# Python 3.9+ recommended
 python -m venv .venv
-.venv\Scripts\Activate
+
+# macOS / Linux
+source .venv/bin/activate
+
+# Windows (PowerShell)
+# .venv\Scripts\Activate
 ```
 
 ### 2. Install required packages from requirements.txt

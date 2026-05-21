@@ -4,6 +4,7 @@ import requests
 import json
 from tqdm import tqdm
 from dataclasses import fields
+from typing import Optional
 from geoguessr.user import PlayerData
 from geoguessr.game import GeoguessrDuelGame, GeoguessrChallengeGame, GameType
 
@@ -55,7 +56,7 @@ class Geoguessr:
         user = raw_data.get('user', {})
         return user.get('id', "")        
     
-    def _query_game_data(self, game_type: str, game_id: str) -> GeoguessrDuelGame | None:
+    def _query_game_data(self, game_type: str, game_id: str) -> Optional[GeoguessrDuelGame]:
         url = f"https://game-server.geoguessr.com/api/duels/{game_id}"
         raw_data = self._make_request(url)
         if raw_data is None:

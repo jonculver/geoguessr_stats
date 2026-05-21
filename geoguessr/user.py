@@ -4,6 +4,7 @@ import json
 import argparse
 
 from dataclasses import dataclass
+from typing import Optional
 
 from geoguessr.game import GeoguessrDuelGame, GeoguessrChallengeGame, GameType, GeoguessrDuelRound, GameMode
 from geoguessr.countries import CountryStats, country_code_to_name, name_to_country_code
@@ -82,7 +83,7 @@ class PlayerData:
         self.username = username
         self.daily_challenge_games: list[GeoguessrChallengeGame] = []
         self.ranked_duel_games: list[GeoguessrDuelGame] = []
-        self.ranked_team_duel_games: dict[str: list[GeoguessrDuelGame]] = {}
+        self.ranked_team_duel_games: dict[str, list[GeoguessrDuelGame]] = {}
 
         self._get_daily_challenge_games()
         self._get_ranked_duel_games()
@@ -174,12 +175,12 @@ class PlayerData:
                     last_time = time
         return last_id
     
-    def get_country_rounds(self, teammate: str|None = None, mode: GameMode|None = None) -> dict[str: list[GeoguessrDuelRound]]:
+    def get_country_rounds(self, teammate: Optional[str] = None, mode: Optional[GameMode] = None) -> dict[str, list[GeoguessrDuelRound]]:
         """
         Get a dictionary mapping country codes in uppercase to lists of duel rounds played in those countries.
 
         """
-        rounds_by_country: dict[str: list[GeoguessrDuelRound]] = {}
+        rounds_by_country: dict[str, list[GeoguessrDuelRound]] = {}
         duel_games = self.ranked_duel_games
         if teammate:
             duel_games = self.ranked_team_duel_games.get(teammate, [])

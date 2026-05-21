@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Optional
 
 class GameType(str, Enum):
     RANKED_DUELS = "Duels"
@@ -133,12 +134,21 @@ class GeoguessrDuelGame:
             players = []
             rating = 0
             for player in team.get('players', []):
-                progress = player.get('progressChange', {})
-                rating_progress = progress.get('rankedSystemProgress', {})
+                progress = player.get('progressChange') or {}
+                if not isinstance(progress, dict):
+                    progress = {}
+
+                rating_progress = progress.get('rankedSystemProgress') or {}
+                if not isinstance(rating_progress, dict):
+                    rating_progress = {}
                 if not rating_progress:
-                    rating_progress = progress.get('competitiveProgress', {})
+                    rating_progress = progress.get('competitiveProgress') or {}
+                    if not isinstance(rating_progress, dict):
+                        rating_progress = {}
                 if not rating_progress:
-                    rating_progress = progress.get('rankedTeamDuelsProgress', {})
+                    rating_progress = progress.get('rankedTeamDuelsProgress') or {}
+                    if not isinstance(rating_progress, dict):
+                        rating_progress = {}
 
                 if player.get('playerId') != player_id:
                     # Record who we are playing with or against
@@ -191,7 +201,7 @@ class GeoguessrDuelGame:
         the start of the first round to the end of the last round in seconds.
         """
 
-        def parse_iso(ts: str) -> datetime | None:
+        def parse_iso(ts: str) -> Optional[datetime]:
             if not ts:
                 return None
             try:
@@ -240,8 +250,8 @@ class GeoguessrDuelGame:
                 opponent_round_results[rr.get('roundNumber')] = rr
 
         start_time: str = ""
-        start_time_iso: datetime | None = None
-        end_time_iso: datetime | None = None
+        start_time_iso: Optional[datetime] = None
+        end_time_iso: Optional[datetime] = None
 
         out: list[GeoguessrDuelRound] = []
         for r in data.get('rounds', []):
@@ -276,7 +286,7 @@ class GeoguessrDuelGame:
 
             # determine which team guessed first by comparing the earliest
             # guess timestamps for this round among all players on each team.
-            def earliest_guess_time(team_obj) -> datetime | None:
+            def earliest_guess_time(team_obj) -> Optional[datetime]:
                 if not team_obj:
                     return None
                 earliest = None
