@@ -5,6 +5,7 @@ from typing import Optional
 
 class GameType(str, Enum):
     RANKED_DUELS = "Duels"
+    UNRANKED_DUELS = "UnrankedDuels"
     RANKED_TEAM_DUELS = "TeamDuels"
     DAILY_CHALLENGE = "DailyChallenge"
     UNKNOWN = "Unknown"

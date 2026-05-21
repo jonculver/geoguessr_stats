@@ -4,7 +4,7 @@ This tool collects and analyzes game data from GeoGuessr for a specified user. I
 
 ## Features
 - Fetches game data for a user from GeoGuessr
-- Supports daily challenges, ranked duels, and team duels
+- Supports daily challenges, ranked duels, unranked duels, and team duels
 - Progress bars for long-running data collection steps
 - Displays player statistics and summaries
 - Outputs results to an organized JSON file in the `output` directory
@@ -97,6 +97,7 @@ python -m geoguessr display Draig -m Moving
 Results are saved in the `output` folder:
 - `<username>_daily_challenge.json`: Daily challenge games
 - `<username>_ranked_duels.json`: Solo ranked duel games
+- `<username>_unranked_duels.json`: Unranked (casual) duel games
 - `<username>_<teammate>_ranked_team_duels.json`: Team duel games with each teammate
 
 ## Backward Compatibility

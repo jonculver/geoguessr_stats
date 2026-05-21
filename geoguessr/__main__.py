@@ -35,11 +35,20 @@ def fetch_command(args):
     else:
         user_data = PlayerData("")  # Empty data
 
-    geo = Geoguessr(username, token, user_data.last_challenge_seed(), user_data.last_ranked_duel_id(), user_data.last_team_duel_id(), max_games)
+    geo = Geoguessr(
+        username,
+        token,
+        user_data.last_challenge_seed(),
+        user_data.last_ranked_duel_id(),
+        user_data.last_unranked_duel_id(),
+        user_data.last_team_duel_id(),
+        max_games,
+    )
 
     # Append player data to geo data to keep reverse chronological order
     daily_challenge_games = geo.daily_challenge_games + user_data.daily_challenge_games
     ranked_duels = geo.ranked_duel_games + user_data.ranked_duel_games
+    unranked_duels = geo.unranked_duel_games + user_data.unranked_duel_games
     ranked_team_duels = {}
 
     teammates = set(geo.ranked_team_duel_games.keys()).union(set(user_data.ranked_team_duel_games.keys()))
@@ -58,6 +67,11 @@ def fetch_command(args):
     duel_file = os.path.join(output_dir, f"{username}_ranked_duels.json")
     with open(duel_file, "w") as f:
         json.dump(ranked_duels, f, default=enum_serializer, indent=2)
+
+    print(f"Saving {len(unranked_duels)} unranked duel games")
+    unranked_file = os.path.join(output_dir, f"{username}_unranked_duels.json")
+    with open(unranked_file, "w") as f:
+        json.dump(unranked_duels, f, default=enum_serializer, indent=2)
 
     # Save Team Duel games separately for each teammate
     for teammate, games in ranked_team_duels.items():

@@ -11,18 +11,33 @@ from geoguessr.game import GeoguessrDuelGame, GeoguessrChallengeGame, GameType
 USERNAME_MAP_FILE = "output/username_map.json"
 
 class Geoguessr:
-    def __init__(self, username: str, ncfa_cookie: str, last_challenge_seed: str, last_ranked_duel_id: str, last_team_duel_id: str, max_games: int = 50) -> None:
+    def __init__(
+        self,
+        username: str,
+        ncfa_cookie: str,
+        last_challenge_seed: str,
+        last_ranked_duel_id: str,
+        last_unranked_duel_id: str,
+        last_team_duel_id: str,
+        max_games: int = 50,
+    ) -> None:
         self.username = username
         self.ncfa_cookie = ncfa_cookie
         self.user_id = self._get_userID()
         self.userids_to_usernames = {}
         self.daily_challenge_games = []
         self.ranked_duel_games = []
+        self.unranked_duel_games = []
         self.ranked_team_duel_games = {}
 
-        print(f"Fetching games for user '{self.username}' (ID: {self.user_id}) since last challenge seed '{last_challenge_seed}', last ranked duel ID '{last_ranked_duel_id}', and last team duel ID '{last_team_duel_id}'...")
+        print(
+            f"Fetching games for user '{self.username}' (ID: {self.user_id}) since last challenge seed '{last_challenge_seed}', "
+            f"last ranked duel ID '{last_ranked_duel_id}', last unranked duel ID '{last_unranked_duel_id}', "
+            f"and last team duel ID '{last_team_duel_id}'..."
+        )
         self._get_games(last_challenge_seed=last_challenge_seed,
                         last_ranked_duel_id=last_ranked_duel_id,
+                        last_unranked_duel_id=last_unranked_duel_id,
                         last_team_duel_id=last_team_duel_id,
                         max_games=max_games)
         print("Converting user IDs to usernames...")
@@ -72,8 +87,11 @@ class Geoguessr:
         game_mode = payload.get('gameMode', "")
         competitive_modes = ["StandardDuels", "NoMoveDuels", "NmpzDuels"]
         competitive_mode = payload.get('competitiveGameMode', "")
-        if game_mode == "Duels" and competitive_mode in competitive_modes:
-            return GameType.RANKED_DUELS
+        if game_mode == "Duels":
+            if competitive_mode in competitive_modes:
+                return GameType.RANKED_DUELS
+            # Non-competitive duels are treated as unranked.
+            return GameType.UNRANKED_DUELS
         elif game_mode == "TeamDuels" and competitive_mode in competitive_modes:
             return GameType.RANKED_TEAM_DUELS
         return GameType.UNKNOWN
@@ -97,7 +115,12 @@ class Geoguessr:
         """
         url = f"https://www.geoguessr.com/api/v4/feed/private?paginationToken={pagination_token}"
         raw_data = self._make_request(url)
-        games = {GameType.DAILY_CHALLENGE: [], GameType.RANKED_DUELS: [], GameType.RANKED_TEAM_DUELS: []}
+        games = {
+            GameType.DAILY_CHALLENGE: [],
+            GameType.RANKED_DUELS: [],
+            GameType.UNRANKED_DUELS: [],
+            GameType.RANKED_TEAM_DUELS: [],
+        }
         entries = raw_data['entries']
         token = raw_data.get('paginationToken')
         for item in entries:
@@ -153,6 +176,7 @@ class Geoguessr:
         """
         # Combine all games for a single progress bar
         all_games = list(self.ranked_duel_games)
+        all_games.extend(self.unranked_duel_games)
         for games in self.ranked_team_duel_games.values():
             all_games.extend(games)
         from tqdm import tqdm
@@ -168,13 +192,23 @@ class Geoguessr:
         safe_username = "".join(c for c in safe_username if c.isalnum() or c == "_")
         return safe_username
 
-    def _get_games(self, last_challenge_seed, last_ranked_duel_id, last_team_duel_id, max_games=1000):
+    def _get_games(self, last_challenge_seed, last_ranked_duel_id, last_unranked_duel_id, last_team_duel_id, max_games=1000):
         """
         Return a dictionary containing a list of games for each game type since the last seen IDs
         """
-        games = {GameType.DAILY_CHALLENGE: [], GameType.RANKED_DUELS: [], GameType.RANKED_TEAM_DUELS: []}
+        games = {
+            GameType.DAILY_CHALLENGE: [],
+            GameType.RANKED_DUELS: [],
+            GameType.UNRANKED_DUELS: [],
+            GameType.RANKED_TEAM_DUELS: [],
+        }
         # Track which game types have found their last game
-        complete_types = {GameType.DAILY_CHALLENGE: False, GameType.RANKED_DUELS: False, GameType.RANKED_TEAM_DUELS: False}
+        complete_types = {
+            GameType.DAILY_CHALLENGE: False,
+            GameType.RANKED_DUELS: False,
+            GameType.UNRANKED_DUELS: False,
+            GameType.RANKED_TEAM_DUELS: False,
+        }
         token = ""
         total_game_ids = 0
         # Use tqdm to show progress of fetching game IDs
@@ -196,6 +230,10 @@ class Geoguessr:
                         if game == last_ranked_duel_id:
                             complete_types[game_type] = True
                             break
+                    elif game_type == GameType.UNRANKED_DUELS:
+                        if game == last_unranked_duel_id:
+                            complete_types[game_type] = True
+                            break
                     elif game_type == GameType.RANKED_TEAM_DUELS:
                         if game == last_team_duel_id:
                             complete_types[game_type] = True
@@ -214,32 +252,40 @@ class Geoguessr:
             if all(complete_types.values()):
                 break
         
-        print(f"Found {len(games[GameType.DAILY_CHALLENGE])} new daily challenge games, {len(games[GameType.RANKED_DUELS])} new ranked duel games, and {len(games[GameType.RANKED_TEAM_DUELS])} new ranked team duel games. ")
+        print(
+            f"Found {len(games[GameType.DAILY_CHALLENGE])} new daily challenge games, "
+            f"{len(games[GameType.RANKED_DUELS])} new ranked duel games, "
+            f"{len(games[GameType.UNRANKED_DUELS])} new unranked duel games, "
+            f"and {len(games[GameType.RANKED_TEAM_DUELS])} new ranked team duel games. "
+        )
         self.daily_challenge_games = games[GameType.DAILY_CHALLENGE]
 
-        # For each duel game query the game data. Use a progress bar for this slow step
-        for type in [GameType.RANKED_DUELS, GameType.RANKED_TEAM_DUELS]:
-            duel_game_ids = games[type]
-            duel_games = []
-            for game_id in tqdm(duel_game_ids, desc=f"Querying {type} data"):
-                duel_game = self._query_game_data(type, game_id)
-                if duel_game is not None:
-                    duel_games.append(duel_game)
-            games[type] = duel_games
+        # Query duel game details (ranked, unranked, and team duels).
+        self.ranked_duel_games = []
+        self.unranked_duel_games = []
+        self.ranked_team_duel_games = {}
 
-        self.ranked_duel_games = games[GameType.RANKED_DUELS]
+        for game_type in [GameType.RANKED_DUELS, GameType.UNRANKED_DUELS, GameType.RANKED_TEAM_DUELS]:
+            game_ids = games[game_type]
+            queried_games = []
+            for game_id in tqdm(game_ids, desc=f"Querying {game_type} data"):
+                game_data = self._query_game_data(game_type, game_id)
+                if game_data is not None:
+                    queried_games.append(game_data)
 
-        # For team duels, group by teammate
-        team_duel_dict = {}
-        for game in games[GameType.RANKED_TEAM_DUELS]:
-            teammate = self._get_username(game.teammate)
-            game.teamate = teammate
-            safename = self._username_to_filename(teammate)
-
-            if safename not in team_duel_dict:
-                team_duel_dict[safename] = []
-            team_duel_dict[safename].append(game)
-
-        self.ranked_team_duel_games = team_duel_dict
+            if game_type == GameType.RANKED_DUELS:
+                self.ranked_duel_games = queried_games
+            elif game_type == GameType.UNRANKED_DUELS:
+                self.unranked_duel_games = queried_games
+            elif game_type == GameType.RANKED_TEAM_DUELS:
+                # Group team duels by teammate (safe username) and store teammate as username.
+                for game in queried_games:
+                    teammate_id = game.teammate
+                    teammate_username = self._get_username(teammate_id)
+                    game.teammate = teammate_username
+                    safename = self._username_to_filename(teammate_username)
+                    if safename not in self.ranked_team_duel_games:
+                        self.ranked_team_duel_games[safename] = []
+                    self.ranked_team_duel_games[safename].append(game)
 
     

@@ -83,10 +83,12 @@ class PlayerData:
         self.username = username
         self.daily_challenge_games: list[GeoguessrChallengeGame] = []
         self.ranked_duel_games: list[GeoguessrDuelGame] = []
+        self.unranked_duel_games: list[GeoguessrDuelGame] = []
         self.ranked_team_duel_games: dict[str, list[GeoguessrDuelGame]] = {}
 
         self._get_daily_challenge_games()
         self._get_ranked_duel_games()
+        self._get_unranked_duel_games()
         self._get_ranked_team_duel_games()
 
     def __str__(self):
@@ -94,6 +96,7 @@ class PlayerData:
             f"PlayerData for {self.username}:",
             f"  Daily Challenge Games: {len(self.daily_challenge_games)}",
             f"  Ranked Duel Games: {len(self.ranked_duel_games)}",
+            f"  Unranked Duel Games: {len(self.unranked_duel_games)}",
             f"  Ranked Team Duel Games: {', '.join([f'{teammate}: {len(games)}' for teammate, games in self.ranked_team_duel_games.items()])}"
         ])
 
@@ -126,6 +129,18 @@ class PlayerData:
             raw_data = json.load(f)
         for item in raw_data:
             self.ranked_duel_games.append(GeoguessrDuelGame.from_json(item) )
+
+    def _get_unranked_duel_games(self):
+        """
+        Read data from output/USERNAME_unranked_duels.json and populate unranked_duel_games
+        """
+        filepath = f"output/{self.username}_unranked_duels.json"
+        if not os.path.exists(filepath):
+            return
+        with open(filepath, 'r', encoding='utf-8') as f:
+            raw_data = json.load(f)
+        for item in raw_data:
+            self.unranked_duel_games.append(GeoguessrDuelGame.from_json(item))
     
     def _get_ranked_team_duel_games(self):
         """
@@ -174,6 +189,14 @@ class PlayerData:
                     last_id = id
                     last_time = time
         return last_id
+
+    def last_unranked_duel_id(self) -> str:
+        """
+        Return the game_id of the most recent unranked duel game, or empty string if none.
+        """
+        if not self.unranked_duel_games:
+            return ""
+        return self.unranked_duel_games[0].game_id
     
     def get_country_rounds(self, teammate: Optional[str] = None, mode: Optional[GameMode] = None) -> dict[str, list[GeoguessrDuelRound]]:
         """
