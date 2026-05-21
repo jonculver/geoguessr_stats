@@ -2,6 +2,7 @@ import json
 import argparse
 import os
 import sys
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 from geoguessr.geoguessr import Geoguessr
@@ -141,6 +142,19 @@ def _parse_analyse_mode(mode: Optional[str]) -> Optional[GameMode]:
 def analyse_command(args):
     """Analyse player data."""
 
+    def _parse_game_timestamp(game) -> float:
+        """Return a sortable timestamp (seconds since epoch) for a duel game."""
+        ts = getattr(game, "start_time", "") or getattr(game, "time", "") or ""
+        if not ts:
+            return float("-inf")
+        try:
+            dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.timestamp()
+        except Exception:
+            return float("-inf")
+
     analysis_type = args.type
     if analysis_type is not None and analysis_type != "region":
         print(f"Unknown analysis type: {analysis_type}")
@@ -164,6 +178,8 @@ def analyse_command(args):
         if args.max_games <= 0:
             print("--max-games must be a positive integer")
             sys.exit(1)
+        # Ensure we always take the most recent games (especially for --include both).
+        duel_games.sort(key=_parse_game_timestamp, reverse=True)
         duel_games = duel_games[: args.max_games]
 
     rounds_by_country: dict[str, list] = {}
