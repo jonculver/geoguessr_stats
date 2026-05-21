@@ -3,6 +3,7 @@ import argparse
 import os
 import sys
 from enum import Enum
+from typing import Optional
 from geoguessr.geoguessr import Geoguessr
 from geoguessr.user import PlayerData, RankedDuelsSummary
 from geoguessr.game import GameMode
@@ -123,6 +124,97 @@ def display_command(args):
     print(f"  Mode: {args.game_mode if args.game_mode else 'All'}")
     print(f"  {summary}")
 
+
+def _parse_analyse_mode(mode: Optional[str]) -> Optional[GameMode]:
+    if not mode:
+        return None
+    mode_norm = mode.strip().lower()
+    if mode_norm == "moving":
+        return GameMode.MOVING
+    if mode_norm in {"nm", "no_move", "nomove"}:
+        return GameMode.NO_MOVE
+    if mode_norm == "nmpz":
+        return GameMode.NMPZ
+    raise ValueError(f"Unknown mode: {mode}")
+
+
+def analyse_command(args):
+    """Analyse player data."""
+
+    analysis_type = args.type
+    if analysis_type is not None and analysis_type != "region":
+        print(f"Unknown analysis type: {analysis_type}")
+        sys.exit(1)
+
+    player_data = PlayerData(args.username)
+
+    include = args.include
+    if include == "ranked":
+        duel_games = list(player_data.ranked_duel_games)
+    elif include == "unranked":
+        duel_games = list(player_data.unranked_duel_games)
+    else:
+        duel_games = list(player_data.ranked_duel_games) + list(player_data.unranked_duel_games)
+
+    mode = _parse_analyse_mode(args.mode)
+    if mode:
+        duel_games = [game for game in duel_games if game.mode == mode]
+
+    if args.max_games is not None:
+        if args.max_games <= 0:
+            print("--max-games must be a positive integer")
+            sys.exit(1)
+        duel_games = duel_games[: args.max_games]
+
+    rounds_by_country: dict[str, list] = {}
+    for game in duel_games:
+        for duel_round in game.rounds:
+            cc = (duel_round.country_code or "").upper() or "??"
+            rounds_by_country.setdefault(cc, []).append(duel_round)
+
+    stats = [CountryStats.from_rounds(cc, rounds) for cc, rounds in rounds_by_country.items()]
+
+    if args.min_rounds is not None:
+        if args.min_rounds < 0:
+            print("--min-rounds must be >= 0")
+            sys.exit(1)
+        stats = [s for s in stats if s.total_rounds >= args.min_rounds]
+
+    if analysis_type is None:
+        def avg_damage_taken(s: CountryStats) -> float:
+            return (s.total_damage_taken / s.total_rounds) if s.total_rounds else 0.0
+
+        stats.sort(key=avg_damage_taken, reverse=True)
+
+        print(f"Country damage taken (avg) for {args.username}")
+        print(f"  Include: {include}")
+        print(f"  Mode: {mode.value if mode else 'All'}")
+        print(f"  Games: {len(duel_games)}")
+        print(f"  Countries: {len(stats)}")
+
+        for s in stats:
+            avg_taken = (s.total_damage_taken / s.total_rounds) if s.total_rounds else 0.0
+            print(
+                f"  {s.country_code} {s.name}: avg_taken={avg_taken:.2f} "
+                f"rounds={s.total_rounds} win%={s.win_percentage}"
+            )
+        return
+
+    # --type region
+    stats.sort(key=lambda s: s.total_rounds, reverse=True)
+
+    print(f"Region analysis for {args.username}")
+    print(f"  Include: {include}")
+    print(f"  Mode: {mode.value if mode else 'All'}")
+    print(f"  Games: {len(duel_games)}")
+    print(f"  Regions: {len(stats)}")
+
+    for s in stats:
+        print(
+            f"  {s.country_code} {s.name}: rounds={s.total_rounds} win%={s.win_percentage} "
+            f"mean_dist_m={s.mean_distance} mean_time_s={s.mean_time}"
+        )
+
 def main():
     parser = argparse.ArgumentParser(
         description="GeoGuessr stats CLI",
@@ -144,6 +236,16 @@ def main():
     display_parser.add_argument("-c", "--country", help="Optional country code or name", default=None)
     display_parser.add_argument("-m", "--game-mode", help="Game mode", choices=[mode.value for mode in GameMode], default=None)
     display_parser.set_defaults(func=display_command)
+
+    # Analyse subcommand
+    analyse_parser = subparsers.add_parser("analyse", help="Analyse player data")
+    analyse_parser.add_argument("username", type=str, help="Username to analyse")
+    analyse_parser.add_argument("-type", "--type", choices=["region"], default=None, help="Analysis type (currently only: region)")
+    analyse_parser.add_argument("-mode", "--mode", choices=["moving", "nm", "nmpz"], default=None, help="Game mode filter")
+    analyse_parser.add_argument("-include", "--include", choices=["ranked", "unranked", "both"], default="both", help="Which games to include")
+    analyse_parser.add_argument("--max-games", type=int, default=None, help="Limit analysis to the most recent N games")
+    analyse_parser.add_argument("--min-rounds", type=int, default=None, help="Only include countries with at least this many rounds")
+    analyse_parser.set_defaults(func=analyse_command)
     
     args = parser.parse_args()
     

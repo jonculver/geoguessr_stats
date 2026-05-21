@@ -100,6 +100,18 @@ Results are saved in the `output` folder:
 - `<username>_unranked_duels.json`: Unranked (casual) duel games
 - `<username>_<teammate>_ranked_team_duels.json`: Team duel games with each teammate
 
+### Analyse Player Data
+
+Analyse saved data for a player:
+```bash
+python -m geoguessr analyse <username> -type region -mode <moving|nm|nmpz> -include <ranked|unranked|both> --max-games <number>
+```
+
+Additional filters:
+- `--min-rounds <number>`: only include countries with at least this many rounds
+
+If `-type/--type` is omitted, the command lists countries sorted by **average damage taken**.
+
 ## Backward Compatibility
 
 For backward compatibility, you can still use the old command format:
