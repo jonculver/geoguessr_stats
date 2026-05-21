@@ -197,21 +197,24 @@ def analyse_command(args):
         stats = [s for s in stats if s.total_rounds >= args.min_rounds]
 
     if analysis_type is None:
-        def avg_damage_taken(s: CountryStats) -> float:
-            return (s.total_damage_taken / s.total_rounds) if s.total_rounds else 0.0
+        def avg_net_damage(s: CountryStats) -> float:
+            """Average (damage_taken - damage_dealt) per round."""
+            if not s.total_rounds:
+                return 0.0
+            return (s.total_damage_taken - s.total_damage_dealt) / s.total_rounds
 
-        stats.sort(key=avg_damage_taken, reverse=True)
+        stats.sort(key=avg_net_damage, reverse=True)
 
-        print(f"Country damage taken (avg) for {args.username}")
+        print(f"Country net damage (avg taken - dealt) for {args.username}")
         print(f"  Include: {include}")
         print(f"  Mode: {mode.value if mode else 'All'}")
         print(f"  Games: {len(duel_games)}")
         print(f"  Countries: {len(stats)}")
 
         for s in stats:
-            avg_taken = (s.total_damage_taken / s.total_rounds) if s.total_rounds else 0.0
+            avg_net = avg_net_damage(s)
             print(
-                f"  {s.country_code} {s.name}: avg_taken={avg_taken:.2f} "
+                f"  {s.country_code} {s.name}: avg_net={avg_net:.2f} "
                 f"rounds={s.total_rounds} win%={s.win_percentage}"
             )
         return
