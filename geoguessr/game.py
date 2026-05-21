@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Optional
@@ -32,6 +32,12 @@ class GeoguessrDuelRound:
     damage_dealt: int
     damage_taken: int
     guessed_first: bool
+    pano_id: str = ""
+    pano_lat: Optional[float] = None
+    pano_lng: Optional[float] = None
+    # Map of playerId -> {"lat": <float>, "lng": <float>}.
+    # Saved for all players present in the duel payload.
+    guess_locations: dict[str, dict[str, float]] = field(default_factory=dict)
 
 @dataclass()
 class GeoguessrDuelGame:
@@ -75,15 +81,22 @@ class GeoguessrDuelGame:
         # Parse rounds
         rounds = []
         for round_data in data.get('rounds', []):
+            guess_locations = round_data.get('guess_locations', {})
+            if not isinstance(guess_locations, dict):
+                guess_locations = {}
             rounds.append(GeoguessrDuelRound(
                 country_code=round_data.get('country_code', ''),
+                pano_id=round_data.get('pano_id', ''),
+                pano_lat=round_data.get('pano_lat', None),
+                pano_lng=round_data.get('pano_lng', None),
                 start_time=round_data.get('start_time', game_start_time),
                 time_secs=round_data.get('time_secs', 0),
                 distance_meters=round_data.get('distance_meters', 0),
                 score=round_data.get('score', 0),
                 damage_dealt=round_data.get('damage_dealt', 0),
                 damage_taken=round_data.get('damage_taken', 0),
-                guessed_first=round_data.get('guessed_first', False)
+                guessed_first=round_data.get('guessed_first', False),
+                guess_locations=guess_locations,
             ))
         
         instance = cls(
@@ -216,6 +229,14 @@ class GeoguessrDuelGame:
             except Exception:
                 return 0
 
+        def to_float(value) -> Optional[float]:
+            if value is None:
+                return None
+            try:
+                return float(value)
+            except Exception:
+                return None
+
         # locate the player's object and their team
         player_obj = None
         player_team = None
@@ -234,6 +255,24 @@ class GeoguessrDuelGame:
         if player_obj:
             for g in player_obj.get('guesses', []):
                 player_guesses[g.get('roundNumber')] = g
+
+        # build lookup of roundNumber -> playerId -> {lat,lng}
+        all_guess_locations: dict[int, dict[str, dict[str, float]]] = {}
+        for team in data.get('teams', []):
+            for p in team.get('players', []):
+                pid = p.get('playerId') or p.get('id')
+                if not pid:
+                    continue
+                for g in p.get('guesses', []):
+                    rn = g.get('roundNumber')
+                    if rn is None:
+                        continue
+                    lat = to_float(g.get('lat'))
+                    lng = to_float(g.get('lng'))
+                    if lat is None or lng is None:
+                        continue
+                    round_map = all_guess_locations.setdefault(int(rn), {})
+                    round_map[pid] = {"lat": lat, "lng": lng}
 
         team_round_results = {}
         opponent_round_results = {}
@@ -259,6 +298,9 @@ class GeoguessrDuelGame:
             rn = r.get('roundNumber')
             pano = r.get('panorama', {})
             country_code = pano.get('countryCode', '')
+            pano_id = pano.get('panoId', '')
+            pano_lat = to_float(pano.get('lat'))
+            pano_lng = to_float(pano.get('lng'))
 
             round_start_time = r.get('startTime', "")
             # Sometimes there seem to be extra rounds that never happend so skip these
@@ -312,13 +354,17 @@ class GeoguessrDuelGame:
                 guessed_first = False
 
             out.append(GeoguessrDuelRound(country_code=country_code,
+                                          pano_id=pano_id,
+                                          pano_lat=pano_lat,
+                                          pano_lng=pano_lng,
                                           start_time=round_start_time,
                                           time_secs=time_secs,
                                           distance_meters=distance_meters,
                                           score=score,
                                           damage_dealt=damage_dealt,
                                           damage_taken=damage_taken,
-                                          guessed_first=guessed_first))
+                                          guessed_first=guessed_first,
+                                          guess_locations=all_guess_locations.get(int(rn), {}) if rn is not None else {}))
             
         # Calculate total elapsed time
         total_elapsed_secs = 0

@@ -100,6 +100,10 @@ Results are saved in the `output` folder:
 - `<username>_unranked_duels.json`: Unranked (casual) duel games
 - `<username>_<teammate>_ranked_team_duels.json`: Team duel games with each teammate
 
+Duel round entries include additional location detail:
+- `pano_id`: the Street View panorama id for the round
+- `guess_locations`: a map of `playerId -> {lat, lng}` for each player's guess on that round
+
 ### Analyse Player Data
 
 Analyse saved data for a player:
