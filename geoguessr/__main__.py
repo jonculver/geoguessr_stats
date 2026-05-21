@@ -182,10 +182,33 @@ def analyse_command(args):
         duel_games.sort(key=_parse_game_timestamp, reverse=True)
         duel_games = duel_games[: args.max_games]
 
+    def _round_both_players_correct_country(duel_round) -> bool:
+        """True iff both players guessed the panorama country for this round."""
+        correct_cc = (getattr(duel_round, "country_code", "") or "").upper()
+        if not correct_cc or correct_cc == "??":
+            return False
+
+        guess_locations = getattr(duel_round, "guess_locations", None) or {}
+        guessed_ccs: list[str] = []
+        if isinstance(guess_locations, dict):
+            for info in guess_locations.values():
+                if not isinstance(info, dict):
+                    continue
+                g_cc = (info.get("country_code") or "").upper()
+                if g_cc:
+                    guessed_ccs.append(g_cc)
+
+        # Need at least two players with country codes.
+        if len(guessed_ccs) < 2:
+            return False
+        return all(g == correct_cc for g in guessed_ccs)
+
     rounds_by_country: dict[str, list] = {}
     for game in duel_games:
         for duel_round in game.rounds:
             cc = (duel_round.country_code or "").upper() or "??"
+            if analysis_type == "region" and not _round_both_players_correct_country(duel_round):
+                continue
             rounds_by_country.setdefault(cc, []).append(duel_round)
 
     stats = [CountryStats.from_rounds(cc, rounds) for cc, rounds in rounds_by_country.items()]
@@ -220,7 +243,12 @@ def analyse_command(args):
         return
 
     # --type region
-    stats.sort(key=lambda s: s.total_rounds, reverse=True)
+    def avg_net_damage(s: CountryStats) -> float:
+        if not s.total_rounds:
+            return 0.0
+        return (s.total_damage_taken - s.total_damage_dealt) / s.total_rounds
+
+    stats.sort(key=avg_net_damage, reverse=True)
 
     print(f"Region analysis for {args.username}")
     print(f"  Include: {include}")
@@ -229,9 +257,10 @@ def analyse_command(args):
     print(f"  Regions: {len(stats)}")
 
     for s in stats:
+        avg_net = avg_net_damage(s)
         print(
-            f"  {s.country_code} {s.name}: rounds={s.total_rounds} win%={s.win_percentage} "
-            f"mean_dist_m={s.mean_distance} mean_time_s={s.mean_time}"
+            f"  {s.country_code} {s.name}: avg_net={avg_net:.2f} "
+            f"rounds={s.total_rounds} win%={s.win_percentage}"
         )
 
 def main():
