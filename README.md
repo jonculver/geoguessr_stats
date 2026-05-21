@@ -30,7 +30,7 @@ pip install -r requirements.txt
 
 ## User Tokens
 
-Create a `users.json` file at the root of this repsoitory with the following structure:
+Create a `users.json` file at the root of this repository with the following structure:
 
 {
     "Username1": "Token1",
@@ -42,7 +42,7 @@ For every user to collect stats for find their token as follows:
 ### Chrome
 
 1. Make sure they have logged in to Geoguessr in this browser
-2. Have them vist `https://www.geoguessr.com/api/v3/profiles`
+2. Have them visit `https://www.geoguessr.com/api/v3/profiles`
 3. Inspect the page and go to the network tab
 4. Refresh the page. Under Headers -> Set Cookie, look for
     ```_ncfa=<token>```
@@ -102,19 +102,66 @@ Results are saved in the `output` folder:
 
 Duel round entries include additional location detail:
 - `pano_id`: the Street View panorama id for the round
-- `guess_locations`: a map of `playerId -> {lat, lng}` for each player's guess on that round
+- `guess_locations`: a map of `playerId -> {lat, lng, country_code?}` for each player's guess on that round
+
+### Country (Per-round listing)
+
+List duel rounds where the *actual* round country matches a given 2-letter code. Output includes the net damage, whether your guess was the correct country (when available), and useful URLs.
+
+```bash
+python -m geoguessr country <username> <country-code>
+```
+
+- `<username>`: The username as listed in `users.json`
+- `<country-code>`: 2-letter country code (e.g. `US`, `IT`)
+
+Output format (per round):
+- `YYYY-MM-DD net=<int> round=<n> correct=<Y|N|?>`
+- GeoGuessr duel URL
+- Google Street View URL (if available)
+
+Notes:
+- `net` is `damage_taken - damage_dealt` for that round.
+- `correct=Y/N` is based on `guess_locations[<your playerId>].country_code` if present; otherwise `correct=?`.
+- Rounds are printed in chronological order (earliest → latest).
+
+**Example:**
+```bash
+python -m geoguessr country Juliette IT
+```
 
 ### Analyse Player Data
 
 Analyse saved data for a player:
 ```bash
-python -m geoguessr analyse <username> -type region -mode <moving|nm|nmpz> -include <ranked|unranked|both> --max-games <number>
+python -m geoguessr analyse <username> [--type <region|wrong-country>] [--mode <moving|nm|nmpz>] [--include <ranked|unranked|both>] [--max-games <n>] [--min-rounds <n>]
 ```
 
-Additional filters:
-- `--min-rounds <number>`: only include countries with at least this many rounds
+Options:
+- `--type region`: Country-level analysis, restricted to rounds where **both players guessed the correct country**.
+- `--type wrong-country`: For each actual country, print the percentage of rounds where you guessed the **wrong** country.
+- `--mode`: Game mode filter (`moving`, `nm`, `nmpz`).
+- `--include`: Which duels to include (`ranked`, `unranked`, or `both`).
+- `--max-games`: Limit analysis to the most recent N games.
+- `--min-rounds`: Only include countries with at least this many rounds.
 
-If `-type/--type` is omitted, the command lists countries sorted by **average damage taken**.
+If `--type` is omitted, the command lists countries sorted by **average net damage per round**, where:
+
+$$\text{net} = \text{damage\_taken} - \text{damage\_dealt}$$
+
+**Examples:**
+```bash
+# Default analysis (average net damage per country)
+python -m geoguessr analyse Juliette
+
+# Region-style analysis, No Move only, ranked only
+python -m geoguessr analyse Juliette --type region --mode nm --include ranked
+
+# Wrong-country percentage, using only the most recent 200 games
+python -m geoguessr analyse Juliette --type wrong-country --max-games 200
+```
+
+Note: You need to run `fetch` first to populate the `output/` JSON files.
 
 ## Backward Compatibility
 
