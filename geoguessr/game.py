@@ -3,6 +3,11 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
+try:
+    import reverse_geocoder as _rg
+except Exception:  # pragma: no cover
+    _rg = None
+
 class GameType(str, Enum):
     RANKED_DUELS = "Duels"
     UNRANKED_DUELS = "UnrankedDuels"
@@ -37,7 +42,8 @@ class GeoguessrDuelRound:
     pano_lng: Optional[float] = None
     # Map of playerId -> {"lat": <float>, "lng": <float>}.
     # Saved for all players present in the duel payload.
-    guess_locations: dict[str, dict[str, float]] = field(default_factory=dict)
+    # When available, entries also include a best-effort "country_code".
+    guess_locations: dict[str, dict[str, object]] = field(default_factory=dict)
 
 @dataclass()
 class GeoguessrDuelGame:
@@ -237,6 +243,29 @@ class GeoguessrDuelGame:
             except Exception:
                 return None
 
+        guess_cc_cache: dict[tuple[float, float], str] = {}
+
+        def guess_country_code(lat: float, lng: float) -> str:
+            """Best-effort ISO2 country code for a guessed lat/lng.
+
+            Uses offline nearest-city reverse geocoding when `reverse_geocoder` is installed.
+            Returns empty string when unavailable.
+            """
+            if _rg is None:
+                return ""
+            key = (round(lat, 4), round(lng, 4))
+            if key in guess_cc_cache:
+                return guess_cc_cache[key]
+            try:
+                res = _rg.search((lat, lng), mode=1)
+                cc = ""
+                if res and isinstance(res, list):
+                    cc = (res[0].get("cc") or "").lower()
+                guess_cc_cache[key] = cc
+                return cc
+            except Exception:
+                return ""
+
         # locate the player's object and their team
         player_obj = None
         player_team = None
@@ -272,7 +301,11 @@ class GeoguessrDuelGame:
                     if lat is None or lng is None:
                         continue
                     round_map = all_guess_locations.setdefault(int(rn), {})
-                    round_map[pid] = {"lat": lat, "lng": lng}
+                    round_map[pid] = {
+                        "lat": lat,
+                        "lng": lng,
+                        "country_code": guess_country_code(lat, lng),
+                    }
 
         team_round_results = {}
         opponent_round_results = {}

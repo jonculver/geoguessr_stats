@@ -1,3 +1,4 @@
 ﻿requests>=2.32,<3
 tqdm>=4.66,<5
 urllib3<2
+reverse_geocoder>=1.5,<2
