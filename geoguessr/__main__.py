@@ -156,7 +156,7 @@ def analyse_command(args):
             return float("-inf")
 
     analysis_type = args.type
-    if analysis_type is not None and analysis_type != "region":
+    if analysis_type is not None and analysis_type not in {"region", "wrong-country"}:
         print(f"Unknown analysis type: {analysis_type}")
         sys.exit(1)
 
@@ -242,6 +242,55 @@ def analyse_command(args):
             )
         return
 
+    if analysis_type == "wrong-country":
+        # Count how often the player's guessed country != the panorama country, grouped by panorama country.
+        wrong_by_country: dict[str, int] = {}
+        total_by_country: dict[str, int] = {}
+
+        for game in duel_games:
+            player_id = getattr(game, "player_id", "") or ""
+            for duel_round in game.rounds:
+                actual_cc = (getattr(duel_round, "country_code", "") or "").upper() or "??"
+                if actual_cc == "??":
+                    continue
+
+                guess_locations = getattr(duel_round, "guess_locations", None) or {}
+                if not isinstance(guess_locations, dict) or not player_id:
+                    continue
+                player_guess = guess_locations.get(player_id) or {}
+                if not isinstance(player_guess, dict):
+                    continue
+                guessed_cc = (player_guess.get("country_code") or "").upper()
+                if not guessed_cc:
+                    continue
+
+                total_by_country[actual_cc] = total_by_country.get(actual_cc, 0) + 1
+                if guessed_cc != actual_cc:
+                    wrong_by_country[actual_cc] = wrong_by_country.get(actual_cc, 0) + 1
+
+        rows: list[tuple[str, int, int, float]] = []
+        for cc, total in total_by_country.items():
+            wrong = wrong_by_country.get(cc, 0)
+            wrong_pct = (wrong * 100.0 / total) if total else 0.0
+            rows.append((cc, wrong, total, wrong_pct))
+
+        if args.min_rounds is not None:
+            rows = [r for r in rows if r[2] >= args.min_rounds]
+
+        # Worst -> best by wrong percentage; break ties by sample size.
+        rows.sort(key=lambda r: (r[3], r[2]), reverse=True)
+
+        print(f"Wrong-country analysis for {args.username}")
+        print(f"  Include: {include}")
+        print(f"  Mode: {mode.value if mode else 'All'}")
+        print(f"  Games: {len(duel_games)}")
+        print(f"  Countries: {len(rows)}")
+
+        for cc, wrong, total, wrong_pct in rows:
+            name = country_code_to_name(cc)
+            print(f"  {cc} {name}: wrong%={wrong_pct:.1f} wrong={wrong} rounds={total}")
+        return
+
     # --type region
     def avg_net_damage(s: CountryStats) -> float:
         if not s.total_rounds:
@@ -288,7 +337,7 @@ def main():
     # Analyse subcommand
     analyse_parser = subparsers.add_parser("analyse", help="Analyse player data")
     analyse_parser.add_argument("username", type=str, help="Username to analyse")
-    analyse_parser.add_argument("-type", "--type", choices=["region"], default=None, help="Analysis type (currently only: region)")
+    analyse_parser.add_argument("-type", "--type", choices=["region", "wrong-country"], default=None, help="Analysis type")
     analyse_parser.add_argument("-mode", "--mode", choices=["moving", "nm", "nmpz"], default=None, help="Game mode filter")
     analyse_parser.add_argument("-include", "--include", choices=["ranked", "unranked", "both"], default="both", help="Which games to include")
     analyse_parser.add_argument("--max-games", type=int, default=None, help="Limit analysis to the most recent N games")
