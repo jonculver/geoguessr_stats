@@ -3,6 +3,7 @@ import argparse
 import os
 import sys
 from datetime import datetime, timezone
+import signal
 from enum import Enum
 from typing import Optional
 from geoguessr.geoguessr import Geoguessr
@@ -126,6 +127,98 @@ def display_command(args):
     print(f"  {summary}")
 
 
+def country_command(args):
+    """List duel rounds for a given country."""
+    username = args.username
+    country = args.country
+
+    if not country or len(country.strip()) != 2:
+        print("Country must be a 2-letter country code (e.g. 'US')")
+        sys.exit(1)
+
+    target_cc = country.strip().upper()
+    player_data = PlayerData(username)
+
+    duel_games = list(player_data.ranked_duel_games) + list(player_data.unranked_duel_games)
+
+    def decode_pano_id(pano_id: str) -> str:
+        """Decode stored pano_id.
+
+        Our JSON often stores pano IDs hex-encoded; decode to UTF-8 when it looks like hex.
+        """
+        if not pano_id:
+            return ""
+        s = pano_id.strip()
+        if len(s) % 2 != 0:
+            return s
+        try:
+            int(s, 16)
+        except Exception:
+            return s
+        try:
+            return bytes.fromhex(s).decode("utf-8")
+        except Exception:
+            return s
+
+    def streetview_url_from_pano_id(pano_id: str) -> str:
+        pano = decode_pano_id(pano_id)
+        if not pano:
+            return ""
+        return f"https://www.google.com/maps/@?api=1&map_action=pano&pano={pano}"
+
+    def parse_ts(ts: str) -> float:
+        if not ts:
+            return float("-inf")
+        try:
+            import re
+
+            s = ts.replace("Z", "+00:00")
+            # Python 3.9 can choke on fractional seconds with <6 digits (e.g. `.73`).
+            m = re.match(r"^(.*T\d\d:\d\d:\d\d)\.(\d+)([+-]\d\d:\d\d)$", s)
+            if m:
+                base, frac, offset = m.group(1), m.group(2), m.group(3)
+                frac = (frac[:6]).ljust(6, "0")
+                s = f"{base}.{frac}{offset}"
+            return datetime.fromisoformat(s).timestamp()
+        except Exception:
+            return float("-inf")
+
+    rows: list[tuple[float, str]] = []
+    for game in duel_games:
+        player_id = getattr(game, "player_id", "") or ""
+        for i, duel_round in enumerate(getattr(game, "rounds", []) or [], start=1):
+            actual_cc = (getattr(duel_round, "country_code", "") or "").upper() or "??"
+            if actual_cc != target_cc:
+                continue
+
+            net_damage = (getattr(duel_round, "damage_taken", 0) or 0) - (getattr(duel_round, "damage_dealt", 0) or 0)
+            pano_id = getattr(duel_round, "pano_id", "") or ""
+            sv_url = streetview_url_from_pano_id(pano_id)
+            start_time = getattr(duel_round, "start_time", "") or ""
+
+            correct = "?"
+            guess_locations = getattr(duel_round, "guess_locations", None) or {}
+            if player_id and isinstance(guess_locations, dict):
+                info = guess_locations.get(player_id)
+                if isinstance(info, dict):
+                    guessed_cc = (info.get("country_code") or "").upper()
+                    if guessed_cc:
+                        correct = "Y" if guessed_cc == actual_cc else "N"
+
+            date = start_time.split("T", 1)[0] if start_time else ""
+            game_id = getattr(game, 'game_id', '')
+            game_url = f"https://www.geoguessr.com/duels/{game_id}" if game_id else ""
+            line = f"  {date} net={net_damage} round={i} correct={correct}\n    {game_url}\n    {sv_url}\n"
+            rows.append((parse_ts(start_time), line))
+
+    rows.sort(key=lambda r: r[0])
+
+    print(f"Duel rounds in {target_cc} for {username}")
+    print(f"  Rounds: {len(rows)}")
+    for _, line in rows:
+        print(line)
+
+
 def _parse_analyse_mode(mode: Optional[str]) -> Optional[GameMode]:
     if not mode:
         return None
@@ -148,7 +241,16 @@ def analyse_command(args):
         if not ts:
             return float("-inf")
         try:
-            dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            import re
+
+            s = ts.replace("Z", "+00:00")
+            m = re.match(r"^(.*T\d\d:\d\d:\d\d)\.(\d+)([+-]\d\d:\d\d)$", s)
+            if m:
+                base, frac, offset = m.group(1), m.group(2), m.group(3)
+                frac = (frac[:6]).ljust(6, "0")
+                s = f"{base}.{frac}{offset}"
+
+            dt = datetime.fromisoformat(s)
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
             return dt.timestamp()
@@ -313,6 +415,12 @@ def analyse_command(args):
         )
 
 def main():
+    # Make piping to tools like `head` behave like typical Unix CLIs.
+    try:
+        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+    except Exception:
+        pass
+
     parser = argparse.ArgumentParser(
         description="GeoGuessr stats CLI",
         prog="python -m geoguessr"
@@ -334,6 +442,12 @@ def main():
     display_parser.add_argument("-m", "--game-mode", help="Game mode", choices=[mode.value for mode in GameMode], default=None)
     display_parser.set_defaults(func=display_command)
 
+    # Country subcommand
+    country_parser = subparsers.add_parser("country", help="List duel rounds for a country")
+    country_parser.add_argument("username", type=str, help="Username to analyse")
+    country_parser.add_argument("country", type=str, help="2-letter country code (e.g. US)")
+    country_parser.set_defaults(func=country_command)
+
     # Analyse subcommand
     analyse_parser = subparsers.add_parser("analyse", help="Analyse player data")
     analyse_parser.add_argument("username", type=str, help="Username to analyse")
@@ -347,7 +461,11 @@ def main():
     args = parser.parse_args()
     
     if hasattr(args, 'func'):
-        args.func(args)
+        try:
+            args.func(args)
+        except BrokenPipeError:
+            # Common when piping to `head`/`tail` and the pipe closes early.
+            return
     else:
         parser.print_help()
 
