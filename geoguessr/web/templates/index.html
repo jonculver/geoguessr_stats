@@ -27,6 +27,7 @@
       table { width: 100%; border-collapse: collapse; margin-top: 12px; }
       th, td { text-align: left; border-bottom: 1px solid #eee; padding: 8px 6px; font-size: 14px; vertical-align: top; }
       th { font-size: 12px; color: #555; text-transform: uppercase; letter-spacing: .04em; }
+      th.sortable { cursor: pointer; user-select: none; }
       .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
       a { color: #0b5fff; text-decoration: none; }
       a:hover { text-decoration: underline; }
@@ -115,10 +116,10 @@
           {% else %}
             {% if analyse.form.type == "region" %}
               <div class="help">Only analyses rounds in which both players guessed the correct country.</div>
-              <table>
+              <table data-sortable="region">
                 <thead>
                   <tr>
-                    <th>#</th><th>Country</th><th>Average net damage taken</th><th>Win %</th><th>Number of Rounds</th>
+                    <th>#</th><th>Country</th><th class="sortable" data-sort-key="avg_net" title="Click to sort">Average net damage taken</th><th class="sortable" data-sort-key="win" title="Click to sort">Win %</th><th>Number of Rounds</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -126,8 +127,8 @@
                     <tr>
                       <td>{{r.idx}}</td>
                       <td>{{r.name}}</td>
-                      <td>{{"%.2f"|format(r.avg_net)}}</td>
-                      <td>{{r.win}}</td>
+                      <td data-sort-value="{{"%.10f"|format(r.avg_net)}}">{{"%.2f"|format(r.avg_net)}}</td>
+                      <td data-sort-value="{{r.win}}">{{r.win}}</td>
                       <td>{{r.rounds}}</td>
                     </tr>
                   {% endfor %}
@@ -254,6 +255,51 @@
 
     <script>
       (function () {
+        function makeTableSortable(table) {
+          if (!table) return;
+
+          var tbody = table.querySelector('tbody');
+          if (!tbody) return;
+
+          var headers = table.querySelectorAll('th.sortable[data-sort-key]');
+          if (!headers || headers.length === 0) return;
+
+          function getCellSortValue(row, columnIndex) {
+            var cell = row.children[columnIndex];
+            if (!cell) return NaN;
+            var raw = cell.getAttribute('data-sort-value');
+            if (raw === null || raw === undefined) raw = cell.textContent;
+            var num = parseFloat(String(raw).replace(/%/g, '').trim());
+            return Number.isFinite(num) ? num : NaN;
+          }
+
+          headers.forEach(function (th) {
+            th.addEventListener('click', function () {
+              var columnIndex = th.cellIndex;
+              var nextDir = th.getAttribute('data-sort-dir') === 'asc' ? 'desc' : 'asc';
+
+              headers.forEach(function (h) {
+                h.removeAttribute('aria-sort');
+                if (h !== th) h.removeAttribute('data-sort-dir');
+              });
+              th.setAttribute('data-sort-dir', nextDir);
+              th.setAttribute('aria-sort', nextDir === 'asc' ? 'ascending' : 'descending');
+
+              var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+              rows.sort(function (a, b) {
+                var av = getCellSortValue(a, columnIndex);
+                var bv = getCellSortValue(b, columnIndex);
+                if (Number.isNaN(av) && Number.isNaN(bv)) return 0;
+                if (Number.isNaN(av)) return 1;
+                if (Number.isNaN(bv)) return -1;
+                return nextDir === 'asc' ? av - bv : bv - av;
+              });
+
+              rows.forEach(function (r) { tbody.appendChild(r); });
+            });
+          });
+        }
+
         function setActive(tabName) {
           var analyseBtn = document.getElementById('tab-btn-analyse');
           var countryBtn = document.getElementById('tab-btn-country');
@@ -273,6 +319,8 @@
 
         var initial = "{{ 'country' if country else 'analyse' }}";
         setActive(initial);
+
+        makeTableSortable(document.querySelector('table[data-sortable="region"]'));
       })();
     </script>
   </body>
