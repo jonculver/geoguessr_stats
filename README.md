@@ -177,6 +177,16 @@ python -m geoguessr analyse Juliette --type wrong-country --max-games 200
 
 Note: You need to run `fetch` first to populate the `output/` JSON files.
 
+### Web UI
+
+Run a local web interface for `analyse` and `country`:
+
+```bash
+python -m geoguessr web
+```
+
+Then open `http://127.0.0.1:8000`.
+
 ## Backward Compatibility
 
 For backward compatibility, you can still use the old command format:

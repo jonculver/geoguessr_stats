@@ -538,6 +538,25 @@ def analyse_command(args):
             f"rounds={s.total_rounds} win%={s.win_percentage}"
         )
 
+
+def web_command(args):
+    """Run a local web UI for analyse/country."""
+    try:
+        import uvicorn
+    except Exception:
+        print("Missing dependency: uvicorn. Run `pip install -r requirements.txt`.")
+        sys.exit(1)
+
+    from geoguessr.web.app import create_app
+
+    app = create_app()
+    uvicorn.run(
+        app,
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
+    )
+
 def main():
     # Make piping to tools like `head` behave like typical Unix CLIs.
     try:
@@ -584,6 +603,13 @@ def main():
     analyse_parser.add_argument("--max-games", type=int, default=None, help="Limit analysis to the most recent N games")
     analyse_parser.add_argument("--min-rounds", type=int, default=None, help="Only include countries with at least this many rounds")
     analyse_parser.set_defaults(func=analyse_command)
+
+    # Web UI subcommand
+    web_parser = subparsers.add_parser("web", help="Run a local web UI")
+    web_parser.add_argument("--host", type=str, default="127.0.0.1", help="Host to bind (default: 127.0.0.1)")
+    web_parser.add_argument("--port", type=int, default=8000, help="Port to bind (default: 8000)")
+    web_parser.add_argument("--reload", action="store_true", help="Auto-reload on code changes")
+    web_parser.set_defaults(func=web_command)
     
     args = parser.parse_args()
     
