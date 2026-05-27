@@ -198,7 +198,7 @@
           {% if country_options and country_options|length > 0 %}
             <select name="country" required>
               {% for opt in country_options %}
-                <option value="{{opt.cc}}" {% if cf and (cf.country|upper)==opt.cc %}selected{% endif %}>{{opt.cc}} — {{opt.name}}</option>
+                <option value="{{opt.cc}}" {% if cf and (cf.country|upper)==opt.cc %}selected{% endif %}>{{opt.name}}</option>
               {% endfor %}
             </select>
           {% else %}
