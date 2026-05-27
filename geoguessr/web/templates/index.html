@@ -209,9 +209,9 @@
           <label>Include</label>
           <select name="include">
             {% set inc2 = cf.include if cf else "both" %}
-            <option value="both" {% if inc2=="both" %}selected{% endif %}>both</option>
-            <option value="ranked" {% if inc2=="ranked" %}selected{% endif %}>ranked</option>
-            <option value="unranked" {% if inc2=="unranked" %}selected{% endif %}>unranked</option>
+            <option value="both" {% if inc2=="both" %}selected{% endif %}>Ranked and Unranked Solo</option>
+            <option value="ranked" {% if inc2=="ranked" %}selected{% endif %}>Ranked Solo</option>
+            <option value="unranked" {% if inc2=="unranked" %}selected{% endif %}>Unranked Solo</option>
           </select>
 
           <label>Mode</label>
@@ -223,8 +223,9 @@
             <option value="nmpz" {% if m2=="nmpz" %}selected{% endif %}>NMPZ</option>
           </select>
 
-          <label>Max games (optional)</label>
+          <label>Number of games to analyse (optional)</label>
           <input type="number" name="max_games" min="1" value="{{ cf.max_games if cf and cf.max_games is not none else '' }}" />
+          <div class="help">This number of the most recent games will be analysed.</div>
 
           <button type="submit">Run country</button>
           </form>
