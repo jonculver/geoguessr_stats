@@ -90,6 +90,13 @@
           </form>
 
         {% if analyse %}
+          {% set analysis_label = "Damage Analysis" if not analyse.form.type else (
+            "Win Percentage Analysis" if analyse.form.type == "win-percentage" else
+            "Country Accuracy Analysis" if analyse.form.type == "wrong-country" else
+            "Regionguessing Analysis" if analyse.form.type == "region" else
+            analyse.form.type
+          ) %}
+          <h3 style="margin: 16px 0 0 0;">{{ analysis_label }}</h3>
           {% if analyse.stderr %}
             <div class="warn">{{ analyse.stderr }}</div>
           {% endif %}
