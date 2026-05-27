@@ -105,7 +105,7 @@
             <table>
               <thead>
                 <tr>
-                  <th>#</th><th>Country</th><th>% wrong</th><th>Rounds</th>
+                  <th>#</th><th>Country</th><th>% wrong</th><th>Rounds</th><th>Show Rounds</th>
                 </tr>
               </thead>
               <tbody>
@@ -115,6 +115,9 @@
                     <td>{{r.name}}</td>
                     <td>{{"%.1f"|format(r.wrong_pct)}}</td>
                     <td>{{r.rounds}}</td>
+                    <td>
+                      <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}">Show Rounds</a>
+                    </td>
                   </tr>
                 {% endfor %}
               </tbody>
@@ -125,7 +128,7 @@
               <table data-sortable="region">
                 <thead>
                   <tr>
-                    <th>#</th><th>Country</th><th class="sortable" data-sort-key="avg_net" title="Click to sort">Average net damage taken</th><th class="sortable" data-sort-key="win" title="Click to sort">Win %</th><th>Number of Rounds</th>
+                    <th>#</th><th>Country</th><th class="sortable" data-sort-key="avg_net" title="Click to sort">Average net damage taken</th><th class="sortable" data-sort-key="win" title="Click to sort">Win %</th><th>Number of Rounds</th><th>Show Rounds</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -136,6 +139,9 @@
                       <td data-sort-value="{{"%.10f"|format(r.avg_net)}}">{{"%.2f"|format(r.avg_net)}}</td>
                       <td data-sort-value="{{r.win}}">{{r.win}}</td>
                       <td>{{r.rounds}}</td>
+                      <td>
+                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}">Show Rounds</a>
+                      </td>
                     </tr>
                   {% endfor %}
                 </tbody>
@@ -144,7 +150,7 @@
               <table>
                 <thead>
                   <tr>
-                    <th>#</th><th>Country</th><th>Win %</th><th>Number of Rounds</th>
+                    <th>#</th><th>Country</th><th>Win %</th><th>Number of Rounds</th><th>Show Rounds</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -154,6 +160,9 @@
                       <td>{{r.name}}</td>
                       <td>{{r.win}}</td>
                       <td>{{r.rounds}}</td>
+                      <td>
+                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}">Show Rounds</a>
+                      </td>
                     </tr>
                   {% endfor %}
                 </tbody>
@@ -162,7 +171,7 @@
               <table>
                 <thead>
                   <tr>
-                    <th>#</th><th>Country</th><th>Average net damage taken</th><th>Number of Rounds</th>
+                    <th>#</th><th>Country</th><th>Average net damage taken</th><th>Number of Rounds</th><th>Show Rounds</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -172,6 +181,9 @@
                       <td>{{r.name}}</td>
                       <td>{{"%.2f"|format(r.avg_net)}}</td>
                       <td>{{r.rounds}}</td>
+                      <td>
+                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}">Show Rounds</a>
+                      </td>
                     </tr>
                   {% endfor %}
                 </tbody>

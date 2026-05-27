@@ -300,4 +300,56 @@ def create_app() -> FastAPI:
             },
         )
 
+    @app.get("/country", response_class=HTMLResponse)
+    def get_country(
+        request: Request,
+        username: str,
+        country: str,
+        mode: Optional[Literal["moving", "nm", "nmpz"]] = None,
+        include: Literal["ranked", "unranked", "both"] = "both",
+        max_games: Optional[int] = None,
+    ):
+        class Args:
+            pass
+
+        args = Args()
+        args.username = username
+        args.country = country
+        args.mode = mode
+        args.include = include
+        args.max_games = max_games
+
+        stdout, stderr = _run_command_capture(country_command, args)
+        rows = _parse_country(stdout)
+
+        country_options = _country_options_for_user(username, include, mode, max_games) if username else []
+
+        return templates.TemplateResponse(
+            "index.html",
+            {
+                "request": request,
+                "usernames": _load_usernames(repo_root),
+                "analyse": None,
+                "country": {
+                    "form": {
+                        "username": username,
+                        "country": country,
+                        "mode": mode,
+                        "include": include,
+                        "max_games": max_games,
+                    },
+                    "stderr": stderr.strip(),
+                    "rows": rows,
+                },
+                "country_form": {
+                    "username": username,
+                    "country": country,
+                    "mode": mode,
+                    "include": include,
+                    "max_games": max_games,
+                },
+                "country_options": country_options,
+            },
+        )
+
     return app
