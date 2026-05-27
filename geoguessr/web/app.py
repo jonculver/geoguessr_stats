@@ -64,7 +64,7 @@ def _parse_mode(mode: Optional[str]) -> Optional[GameMode]:
     return None
 
 
-def _available_games_count(username: str, include: str, mode: Optional[str]) -> int:
+def _available_games_count(username: str, include: str, mode: Optional[str], max_days: Optional[int]) -> int:
     if not username:
         return 0
     player_data = PlayerData(username)
@@ -85,6 +85,36 @@ def _available_games_count(username: str, include: str, mode: Optional[str]) -> 
     gm = _parse_mode(mode)
     if gm is not None:
         games = [g for g in games if getattr(g, "mode", None) == gm]
+
+
+    if max_days is not None:
+        if max_days <= 0:
+            return 0
+
+        from datetime import datetime, timezone
+
+        def _parse_ts(ts: str) -> float:
+            if not ts:
+                return float("-inf")
+            try:
+                import re
+
+                s = ts.replace("Z", "+00:00")
+                m = re.match(r"^(.*T\d\d:\d\d:\d\d)\.(\d+)([+-]\d\d:\d\d)$", s)
+                if m:
+                    base, frac, offset = m.group(1), m.group(2), m.group(3)
+                    frac = (frac[:6]).ljust(6, "0")
+                    s = f"{base}.{frac}{offset}"
+                return datetime.fromisoformat(s).timestamp()
+            except Exception:
+                return float("-inf")
+
+        cutoff = datetime.now(timezone.utc).timestamp() - (float(max_days) * 86400.0)
+
+        def game_ts(g) -> float:
+            return _parse_ts(getattr(g, "start_time", "") or getattr(g, "time", "") or "")
+
+        games = [g for g in games if game_ts(g) >= cutoff]
     return len(games)
 
 
@@ -180,6 +210,7 @@ def _country_options_for_user(
     include: str,
     mode: Optional[Literal["moving", "nm", "nmpz"]],
     max_games: Optional[int],
+    max_days: Optional[int],
 ) -> list[dict[str, str]]:
     class Args:
         pass
@@ -190,6 +221,7 @@ def _country_options_for_user(
     args.mode = mode
     args.include = include
     args.max_games = max_games
+    args.max_days = max_days
     args.min_rounds = 1
 
     stdout, _stderr = _run_command_capture(analyse_command, args)
@@ -219,8 +251,10 @@ def create_app() -> FastAPI:
         username: str,
         include: str = "both",
         mode: Optional[Literal["moving", "nm", "nmpz"]] = None,
+        max_days: Optional[int] = None,
     ):
-        return {"count": _available_games_count(username, include, mode)}
+        # Hack-free way to avoid expanding function signature everywhere: stash max_days for this call.
+        return {"count": _available_games_count(username, include, mode, max_days)}
 
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request):
@@ -229,6 +263,7 @@ def create_app() -> FastAPI:
         default_include: str = "both"
         default_mode: Optional[Literal["moving", "nm", "nmpz"]] = None
         default_max_games: Optional[int] = None
+        default_max_days: Optional[int] = None
         default_country = ""
 
         country_options = (
@@ -237,13 +272,14 @@ def create_app() -> FastAPI:
                 default_include,
                 default_mode,
                 default_max_games,
+                default_max_days,
             )
             if default_username
             else []
         )
 
         analyse_available_games = (
-            _available_games_count(default_username, default_include, default_mode)
+            _available_games_count(default_username, default_include, default_mode, default_max_days)
             if default_username
             else 0
         )
@@ -269,6 +305,7 @@ def create_app() -> FastAPI:
                     "mode": default_mode,
                     "include": default_include,
                     "max_games": default_max_games,
+                    "max_days": default_max_days,
                 },
                 "country_available_games": country_available_games,
                 "country_options": country_options,
@@ -283,6 +320,7 @@ def create_app() -> FastAPI:
         mode: Optional[Literal["moving", "nm", "nmpz"]] = Form(None),
         include: str = Form("both"),
         max_games: Optional[int] = Form(None),
+        max_days: Optional[int] = Form(None),
         min_rounds: Optional[int] = Form(None),
     ):
         class Args:
@@ -294,13 +332,14 @@ def create_app() -> FastAPI:
         args.mode = mode
         args.include = include
         args.max_games = max_games
+        args.max_days = max_days
         args.min_rounds = min_rounds
 
         stdout, stderr = _run_command_capture(analyse_command, args)
         rows = _parse_analyse(stdout, analysis_type)
 
-        analyse_available_games = _available_games_count(username, include, mode)
-        country_available_games = _available_games_count(username, "both", None)
+        analyse_available_games = _available_games_count(username, include, mode, max_days)
+        country_available_games = _available_games_count(username, "both", None, None)
 
         return templates.TemplateResponse(
             "index.html",
@@ -316,6 +355,7 @@ def create_app() -> FastAPI:
                         "mode": mode,
                         "include": include,
                         "max_games": max_games,
+                        "max_days": max_days,
                         "min_rounds": min_rounds,
                     },
                     "stderr": stderr.strip(),
@@ -329,10 +369,11 @@ def create_app() -> FastAPI:
                     "mode": None,
                     "include": "both",
                     "max_games": None,
+                    "max_days": None,
                 },
                 "country_available_games": country_available_games,
                 "country_options": (
-                    _country_options_for_user(username, "both", None, None) if username else []
+                    _country_options_for_user(username, "both", None, None, None) if username else []
                 ),
             },
         )
@@ -345,6 +386,7 @@ def create_app() -> FastAPI:
         mode: Optional[Literal["moving", "nm", "nmpz"]] = Form(None),
         include: str = Form("both"),
         max_games: Optional[int] = Form(None),
+        max_days: Optional[int] = Form(None),
         both_correct: Optional[str] = Form(None),
     ):
         class Args:
@@ -356,15 +398,16 @@ def create_app() -> FastAPI:
         args.mode = mode
         args.include = include
         args.max_games = max_games
+        args.max_days = max_days
         args.both_correct = both_correct is not None
 
         stdout, stderr = _run_command_capture(country_command, args)
         rows = _parse_country(stdout)
 
-        country_options = _country_options_for_user(username, include, mode, max_games) if username else []
+        country_options = _country_options_for_user(username, include, mode, max_games, max_days) if username else []
 
-        analyse_available_games = _available_games_count(username, "both", None)
-        country_available_games = _available_games_count(username, include, mode)
+        analyse_available_games = _available_games_count(username, "both", None, None)
+        country_available_games = _available_games_count(username, include, mode, max_days)
 
         return templates.TemplateResponse(
             "index.html",
@@ -382,6 +425,7 @@ def create_app() -> FastAPI:
                         "mode": mode,
                         "include": include,
                         "max_games": max_games,
+                        "max_days": max_days,
                         "both_correct": both_correct is not None,
                     },
                     "stderr": stderr.strip(),
@@ -393,6 +437,7 @@ def create_app() -> FastAPI:
                     "mode": mode,
                     "include": include,
                     "max_games": max_games,
+                    "max_days": max_days,
                     "both_correct": both_correct is not None,
                 },
                 "country_available_games": country_available_games,
@@ -408,6 +453,7 @@ def create_app() -> FastAPI:
         mode: Optional[Literal["moving", "nm", "nmpz"]] = None,
         include: str = "both",
         max_games: Optional[int] = None,
+        max_days: Optional[int] = None,
         both_correct: bool = False,
     ):
         class Args:
@@ -419,15 +465,16 @@ def create_app() -> FastAPI:
         args.mode = mode
         args.include = include
         args.max_games = max_games
+        args.max_days = max_days
         args.both_correct = both_correct
 
         stdout, stderr = _run_command_capture(country_command, args)
         rows = _parse_country(stdout)
 
-        country_options = _country_options_for_user(username, include, mode, max_games) if username else []
+        country_options = _country_options_for_user(username, include, mode, max_games, max_days) if username else []
 
-        analyse_available_games = _available_games_count(username, "both", None)
-        country_available_games = _available_games_count(username, include, mode)
+        analyse_available_games = _available_games_count(username, "both", None, None)
+        country_available_games = _available_games_count(username, include, mode, max_days)
 
         return templates.TemplateResponse(
             "index.html",
@@ -445,6 +492,7 @@ def create_app() -> FastAPI:
                         "mode": mode,
                         "include": include,
                         "max_games": max_games,
+                        "max_days": max_days,
                         "both_correct": both_correct,
                     },
                     "stderr": stderr.strip(),
@@ -456,6 +504,7 @@ def create_app() -> FastAPI:
                     "mode": mode,
                     "include": include,
                     "max_games": max_games,
+                    "max_days": max_days,
                     "both_correct": both_correct,
                 },
                 "country_available_games": country_available_games,

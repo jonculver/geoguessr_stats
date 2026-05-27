@@ -139,6 +139,7 @@ def country_command(args):
     username = args.username
     country = args.country
     max_games = args.max_games
+    max_days = getattr(args, "max_days", None)
     include = args.include
     mode = _parse_analyse_mode(args.mode)
     both_correct = bool(getattr(args, "both_correct", False))
@@ -168,6 +169,11 @@ def country_command(args):
 
     if mode is not None:
         duel_games = [(g, t) for (g, t) in duel_games if getattr(g, "mode", None) == mode]
+
+    if max_days is not None:
+        if max_days <= 0:
+            print("--max-days must be a positive integer")
+            sys.exit(1)
 
     if max_games is not None:
         if max_games <= 0:
@@ -249,6 +255,10 @@ def country_command(args):
         # Fallback: use the most recent round start time.
         round_ts = [parse_ts(getattr(r, "start_time", "") or "") for r in getattr(game, "rounds", []) or []]
         return max(round_ts) if round_ts else float("-inf")
+
+    if max_days is not None:
+        cutoff = datetime.now(timezone.utc).timestamp() - (float(max_days) * 86400.0)
+        duel_games = [(g, t) for (g, t) in duel_games if game_ts(g) >= cutoff]
 
     if max_games is not None:
         duel_games = sorted(duel_games, key=game_ts, reverse=True)[:max_games]
@@ -428,6 +438,8 @@ def analyse_command(args):
 
     player_data = PlayerData(args.username)
 
+    max_days = getattr(args, "max_days", None)
+
     include = args.include
     if isinstance(include, str) and include.startswith("team:"):
         teammate = include.split(":", 1)[1].strip()
@@ -445,6 +457,13 @@ def analyse_command(args):
     mode = _parse_analyse_mode(args.mode)
     if mode:
         duel_games = [game for game in duel_games if game.mode == mode]
+
+    if max_days is not None:
+        if max_days <= 0:
+            print("--max-days must be a positive integer")
+            sys.exit(1)
+        cutoff = datetime.now(timezone.utc).timestamp() - (float(max_days) * 86400.0)
+        duel_games = [g for g in duel_games if _parse_game_timestamp(g) >= cutoff]
 
     if args.max_games is not None:
         if args.max_games <= 0:
@@ -709,6 +728,7 @@ def main():
         help="Which games to include: ranked | unranked | both | team:<teammate>",
     )
     country_parser.add_argument("-mode", "--mode", choices=["moving", "nm", "nmpz"], default=None, help="Game mode filter")
+    country_parser.add_argument("--max-days", type=int, default=None, help="Only include games from the last N days")
     country_parser.add_argument("--max-games", type=int, default=None, help="Limit to the most recent N games")
     country_parser.add_argument(
         "--both-correct",
@@ -729,6 +749,7 @@ def main():
         help="Which games to include: ranked | unranked | both | team:<teammate>",
     )
     analyse_parser.add_argument("--max-games", type=int, default=None, help="Limit analysis to the most recent N games")
+    analyse_parser.add_argument("--max-days", type=int, default=None, help="Only include games from the last N days")
     analyse_parser.add_argument("--min-rounds", type=int, default=None, help="Only include countries with at least this many rounds")
     analyse_parser.set_defaults(func=analyse_command)
 

@@ -87,6 +87,10 @@
           <label>Number of games to analyse (optional)</label>
           <input type="number" name="max_games" min="1" value="{{ analyse.form.max_games if analyse and analyse.form.max_games is not none else '' }}" />
           <div class="help">This number of the most recent games will be analysed. E.g. if 100 is selected, the most recent 100 duels are used.</div>
+
+          <label>Number of days to analyse (optional)</label>
+          <input type="number" name="max_days" min="1" value="{{ analyse.form.max_days if analyse and analyse.form.max_days is not none else '' }}" />
+          <div class="help">Only include duels from the last N days.</div>
           <div class="help">Available games for current filters: <span class="mono" id="analyse-available-games">{{ analyse_available_games if analyse_available_games is not none else 0 }}</span></div>
 
           <label>Minimum Rounds (optional)</label>
@@ -123,7 +127,7 @@
                     <td>{{"%.1f"|format(r.wrong_pct)}}</td>
                     <td>{{r.rounds}}</td>
                     <td>
-                      <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}">Show Rounds with Damage Taken</a>
+                      <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}{% if analyse.form.max_days %}&max_days={{ analyse.form.max_days }}{% endif %}">Show Rounds with Damage Taken</a>
                     </td>
                   </tr>
                 {% endfor %}
@@ -147,7 +151,7 @@
                       <td data-sort-value="{{r.win}}">{{r.win}}</td>
                       <td>{{r.rounds}}</td>
                       <td>
-                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}&both_correct=true{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}">Show Rounds with Damage Taken</a>
+                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}&both_correct=true{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}{% if analyse.form.max_days %}&max_days={{ analyse.form.max_days }}{% endif %}">Show Rounds with Damage Taken</a>
                       </td>
                     </tr>
                   {% endfor %}
@@ -168,7 +172,7 @@
                       <td>{{r.win}}</td>
                       <td>{{r.rounds}}</td>
                       <td>
-                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}">Show Rounds with Damage Taken</a>
+                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}{% if analyse.form.max_days %}&max_days={{ analyse.form.max_days }}{% endif %}">Show Rounds with Damage Taken</a>
                       </td>
                     </tr>
                   {% endfor %}
@@ -189,7 +193,7 @@
                       <td>{{"%.2f"|format(r.avg_net)}}</td>
                       <td>{{r.rounds}}</td>
                       <td>
-                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}">Show Rounds with Damage Taken</a>
+                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}{% if analyse.form.max_days %}&max_days={{ analyse.form.max_days }}{% endif %}">Show Rounds with Damage Taken</a>
                       </td>
                     </tr>
                   {% endfor %}
@@ -251,6 +255,10 @@
           <label>Number of games to analyse (optional)</label>
           <input type="number" name="max_games" min="1" value="{{ cf.max_games if cf and cf.max_games is not none else '' }}" />
           <div class="help">This number of the most recent games will be analysed. E.g. if 100 is selected, the most recent 100 duels are used.</div>
+
+          <label>Number of days to analyse (optional)</label>
+          <input type="number" name="max_days" min="1" value="{{ cf.max_days if cf and cf.max_days is not none else '' }}" />
+          <div class="help">Only include duels from the last N days.</div>
           <div class="help">Available games for current filters: <span class="mono" id="country-available-games">{{ country_available_games if country_available_games is not none else 0 }}</span></div>
 
           <label style="display:flex; align-items:center; gap:8px; margin-top: 12px;">
@@ -386,10 +394,12 @@
           var usernameEl = panelEl.querySelector('select[name="username"]');
           var includeEl = panelEl.querySelector('select[name="include"]');
           var modeEl = panelEl.querySelector('select[name="mode"]');
+          var maxDaysEl = panelEl.querySelector('input[name="max_days"]');
 
           var username = usernameEl ? usernameEl.value : '';
           var include = includeEl ? includeEl.value : 'both';
           var mode = modeEl ? modeEl.value : '';
+          var maxDays = maxDaysEl ? String(maxDaysEl.value || '').trim() : '';
 
           if (!username) {
             outputEl.textContent = '0';
@@ -398,6 +408,7 @@
 
           var url = '/available-games?username=' + encodeURIComponent(username) + '&include=' + encodeURIComponent(include);
           if (mode) url += '&mode=' + encodeURIComponent(mode);
+          if (maxDays) url += '&max_days=' + encodeURIComponent(maxDays);
 
           outputEl.textContent = '…';
           fetch(url, { headers: { 'Accept': 'application/json' } })
@@ -417,9 +428,10 @@
           var out = document.getElementById(outputId);
           if (!panel || !out) return;
 
-          var els = panel.querySelectorAll('select[name="username"], select[name="include"], select[name="mode"]');
+          var els = panel.querySelectorAll('select[name="username"], select[name="include"], select[name="mode"], input[name="max_days"]');
           els.forEach(function (el) {
             el.addEventListener('change', function () { updateAvailableGames(panel, out); });
+            el.addEventListener('input', function () { updateAvailableGames(panel, out); });
           });
           updateAvailableGames(panel, out);
         }
