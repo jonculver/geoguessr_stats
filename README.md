@@ -133,7 +133,7 @@ Output format (per round):
 Notes:
 - `net` is multiplier-normalized: `(damage_taken / opponent_multiplier) - (damage_dealt / team_multiplier)`.
 - `correct=Y/N` is based on `guess_locations[<your playerId>].country_code` if present; otherwise `correct=?`.
-- Rounds are printed in chronological order (earliest → latest).
+- Rounds are printed ordered by `net` (lowest → highest).
 
 **Example:**
 ```bash

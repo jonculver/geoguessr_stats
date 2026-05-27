@@ -259,7 +259,7 @@ def country_command(args):
             file=sys.stderr,
         )
 
-    rows: list[tuple[float, str]] = []
+    rows: list[tuple[float, float, str]] = []
     for game in duel_games:
         player_id = getattr(game, "player_id", "") or ""
         for i, duel_round in enumerate(getattr(game, "rounds", []) or [], start=1):
@@ -288,13 +288,14 @@ def country_command(args):
             game_url = f"https://www.geoguessr.com/duels/{game_id}" if game_id else ""
             net_display = int(round(net_damage))
             line = f"  {date} net={net_display} round={i} correct={correct}\n    {game_url}\n    {sv_url}\n"
-            rows.append((parse_ts(start_time), line))
+            rows.append((net_damage, parse_ts(start_time), line))
 
-    rows.sort(key=lambda r: r[0])
+    # Sort by net damage (lowest first), then by time for stability.
+    rows.sort(key=lambda r: (r[0], r[1]))
 
     print(f"Duel rounds in {target_cc} for {username}")
     print(f"  Rounds: {len(rows)}")
-    for _, line in rows:
+    for _, __, line in rows:
         print(line)
 
 
