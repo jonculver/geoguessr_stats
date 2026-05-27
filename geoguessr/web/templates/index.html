@@ -56,9 +56,9 @@
           <label>Analysis Type</label>
           <select name="analysis_type">
             <option value="" {% if not (analyse and analyse.form.type) %}selected{% endif %}>Damage Analysis</option>
-            <option value="region" {% if analyse and analyse.form.type=="region" %}selected{% endif %}>Regionguessing Analysis</option>
-            <option value="wrong-country" {% if analyse and analyse.form.type=="wrong-country" %}selected{% endif %}>Country Accuracy Analysis</option>
             <option value="win-percentage" {% if analyse and analyse.form.type=="win-percentage" %}selected{% endif %}>Win Percentage Analysis</option>
+            <option value="wrong-country" {% if analyse and analyse.form.type=="wrong-country" %}selected{% endif %}>Country Accuracy Analysis</option>
+            <option value="region" {% if analyse and analyse.form.type=="region" %}selected{% endif %}>Regionguessing Analysis</option>
           </select>
 
           <label>Type of Duels</label>
