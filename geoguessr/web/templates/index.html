@@ -20,6 +20,7 @@
       .tab-frame .card { border: none; border-radius: 0; padding: 0; min-width: 0; }
       .tab-frame h2 { margin-top: 0; }
       label { display: block; font-size: 13px; margin-top: 10px; color: #333; }
+      .help { font-size: 12px; color: #555; margin-top: 4px; }
       input, select { width: 100%; padding: 8px 10px; margin-top: 4px; border: 1px solid #ccc; border-radius: 8px; }
       button { margin-top: 12px; padding: 10px 12px; border: 1px solid #333; border-radius: 8px; background: #fff; cursor: pointer; }
       .warn { background: #fff7e6; border: 1px solid #ffd591; padding: 10px 12px; border-radius: 8px; margin: 12px 0; white-space: pre-wrap; }
@@ -79,8 +80,9 @@
           <label>Max games (optional)</label>
           <input type="number" name="max_games" min="1" value="{{ analyse.form.max_games if analyse and analyse.form.max_games is not none else '' }}" />
 
-          <label>Min rounds (optional)</label>
+          <label>Minimum Rounds (optional)</label>
           <input type="number" name="min_rounds" min="0" value="{{ analyse.form.min_rounds if analyse and analyse.form.min_rounds is not none else '' }}" />
+          <div class="help">Only include countries with at least this number of rounds</div>
 
           <button type="submit">Run Analysis</button>
           </form>
