@@ -253,6 +253,11 @@
           <div class="help">This number of the most recent games will be analysed.</div>
           <div class="help">Available games for current filters: <span class="mono" id="country-available-games">{{ country_available_games if country_available_games is not none else 0 }}</span></div>
 
+          <label style="display:flex; align-items:center; gap:8px; margin-top: 12px;">
+            <input type="checkbox" name="both_correct" style="width:auto; margin:0;" {% if cf and cf.both_correct %}checked{% endif %} />
+            Only include rounds where both players guessed the correct country
+          </label>
+
           <button type="submit">Show Rounds</button>
           </form>
 

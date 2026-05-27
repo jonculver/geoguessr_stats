@@ -141,6 +141,7 @@ def country_command(args):
     max_games = args.max_games
     include = args.include
     mode = _parse_analyse_mode(args.mode)
+    both_correct = bool(getattr(args, "both_correct", False))
 
     if not country or len(country.strip()) != 2:
         print("Country must be a 2-letter country code (e.g. 'US')")
@@ -288,6 +289,26 @@ def country_command(args):
                 return True
         return False
 
+    def round_all_players_correct_country(duel_round) -> bool:
+        """True iff at least two players guessed the panorama country for this round."""
+        correct_cc = (getattr(duel_round, "country_code", "") or "").upper()
+        if not correct_cc or correct_cc == "??":
+            return False
+
+        guess_locations = getattr(duel_round, "guess_locations", None) or {}
+        guessed_ccs: list[str] = []
+        if isinstance(guess_locations, dict):
+            for info in guess_locations.values():
+                if not isinstance(info, dict):
+                    continue
+                g_cc = (info.get("country_code") or "").upper()
+                if g_cc:
+                    guessed_ccs.append(g_cc)
+
+        if len(guessed_ccs) < 2:
+            return False
+        return all(g == correct_cc for g in guessed_ccs)
+
     rows: list[tuple[float, float, str]] = []
     for game, duel_type in duel_games:
         mode_value = getattr(game, "mode", None)
@@ -306,6 +327,8 @@ def country_command(args):
                 continue
             actual_cc = (getattr(duel_round, "country_code", "") or "").upper() or "??"
             if actual_cc != target_cc:
+                continue
+            if both_correct and not round_all_players_correct_country(duel_round):
                 continue
 
             net_damage = net_damage_normalized(duel_round)
@@ -335,6 +358,8 @@ def country_command(args):
     rows.sort(key=lambda r: (-r[0], r[1]))
 
     print(f"Duel rounds in {target_cc} for {username}")
+    if both_correct:
+        print("  Filter: both players guessed correct country")
     print(f"  Rounds: {len(rows)}")
     for _, __, line in rows:
         print(line)
@@ -685,6 +710,11 @@ def main():
     )
     country_parser.add_argument("-mode", "--mode", choices=["moving", "nm", "nmpz"], default=None, help="Game mode filter")
     country_parser.add_argument("--max-games", type=int, default=None, help="Limit to the most recent N games")
+    country_parser.add_argument(
+        "--both-correct",
+        action="store_true",
+        help="Only include rounds where both players guessed the correct country",
+    )
     country_parser.set_defaults(func=country_command)
 
     # Analyse subcommand

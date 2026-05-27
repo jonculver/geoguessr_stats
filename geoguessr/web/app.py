@@ -345,6 +345,7 @@ def create_app() -> FastAPI:
         mode: Optional[Literal["moving", "nm", "nmpz"]] = Form(None),
         include: str = Form("both"),
         max_games: Optional[int] = Form(None),
+        both_correct: Optional[str] = Form(None),
     ):
         class Args:
             pass
@@ -355,6 +356,7 @@ def create_app() -> FastAPI:
         args.mode = mode
         args.include = include
         args.max_games = max_games
+        args.both_correct = both_correct is not None
 
         stdout, stderr = _run_command_capture(country_command, args)
         rows = _parse_country(stdout)
@@ -380,6 +382,7 @@ def create_app() -> FastAPI:
                         "mode": mode,
                         "include": include,
                         "max_games": max_games,
+                        "both_correct": both_correct is not None,
                     },
                     "stderr": stderr.strip(),
                     "rows": rows,
@@ -390,6 +393,7 @@ def create_app() -> FastAPI:
                     "mode": mode,
                     "include": include,
                     "max_games": max_games,
+                    "both_correct": both_correct is not None,
                 },
                 "country_available_games": country_available_games,
                 "country_options": country_options,
@@ -404,6 +408,7 @@ def create_app() -> FastAPI:
         mode: Optional[Literal["moving", "nm", "nmpz"]] = None,
         include: str = "both",
         max_games: Optional[int] = None,
+        both_correct: bool = False,
     ):
         class Args:
             pass
@@ -414,6 +419,7 @@ def create_app() -> FastAPI:
         args.mode = mode
         args.include = include
         args.max_games = max_games
+        args.both_correct = both_correct
 
         stdout, stderr = _run_command_capture(country_command, args)
         rows = _parse_country(stdout)
@@ -439,6 +445,7 @@ def create_app() -> FastAPI:
                         "mode": mode,
                         "include": include,
                         "max_games": max_games,
+                        "both_correct": both_correct,
                     },
                     "stderr": stderr.strip(),
                     "rows": rows,
@@ -449,6 +456,7 @@ def create_app() -> FastAPI:
                     "mode": mode,
                     "include": include,
                     "max_games": max_games,
+                    "both_correct": both_correct,
                 },
                 "country_available_games": country_available_games,
                 "country_options": country_options,
