@@ -113,7 +113,27 @@
               </tbody>
             </table>
           {% else %}
-            {% if analyse.form.type in ["region", "win-percentage"] %}
+            {% if analyse.form.type == "region" %}
+              <div class="help">Only analyses rounds in which both players guessed the correct country.</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th><th>Country</th><th>Average net damage taken</th><th>Win %</th><th>Number of Rounds</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for r in analyse.rows %}
+                    <tr>
+                      <td>{{r.idx}}</td>
+                      <td>{{r.name}}</td>
+                      <td>{{"%.2f"|format(r.avg_net)}}</td>
+                      <td>{{r.win}}</td>
+                      <td>{{r.rounds}}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            {% elif analyse.form.type == "win-percentage" %}
               <table>
                 <thead>
                   <tr>
