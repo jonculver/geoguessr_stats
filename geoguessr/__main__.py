@@ -281,6 +281,16 @@ def country_command(args):
 
     rows: list[tuple[float, float, str]] = []
     for game in duel_games:
+        mode_value = getattr(game, "mode", None)
+        if mode_value == GameMode.NO_MOVE:
+            mode_display = "NM"
+        elif mode_value == GameMode.MOVING:
+            mode_display = "Moving"
+        elif mode_value == GameMode.NMPZ:
+            mode_display = "NMPZ"
+        else:
+            mode_display = "?"
+
         player_id = getattr(game, "player_id", "") or ""
         for i, duel_round in enumerate(getattr(game, "rounds", []) or [], start=1):
             if not has_two_guess_locations(duel_round):
@@ -309,7 +319,7 @@ def country_command(args):
             game_id = getattr(game, 'game_id', '')
             game_url = f"https://www.geoguessr.com/duels/{game_id}" if game_id else ""
             net_display = int(round(net_damage))
-            line = f"  {date} net={net_display} round={i} correct={correct}\n    {game_url}\n    {sv_url}\n"
+            line = f"  {date} mode={mode_display} net={net_display} round={i} correct={correct}\n    {game_url}\n    {sv_url}\n"
             rows.append((net_damage, parse_ts(start_time), line))
 
     # Sort by net damage (lowest first), then by time for stability.

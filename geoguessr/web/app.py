@@ -42,7 +42,7 @@ _WRONG_COUNTRY_ROW_RE = re.compile(
 )
 
 _COUNTRY_LINE_RE = re.compile(
-    r"^\s*(?P<date>\d{4}-\d{2}-\d{2})\s+net=(?P<net>-?\d+)\s+round=(?P<round>\d+)\s+correct=(?P<correct>[YN?])\s*$"
+    r"^\s*(?P<date>\d{4}-\d{2}-\d{2})\s+(?:mode=(?P<mode>\S+)\s+)?net=(?P<net>-?\d+)\s+round=(?P<round>\d+)\s+correct=(?P<correct>[YN?])\s*$"
 )
 
 
@@ -91,6 +91,7 @@ def _parse_country(stdout_text: str) -> list[dict[str, Any]]:
             continue
 
         date = m.group("date")
+        mode = m.group("mode") or "?"
         net = int(m.group("net"))
         round_n = int(m.group("round"))
         correct = m.group("correct")
@@ -105,6 +106,7 @@ def _parse_country(stdout_text: str) -> list[dict[str, Any]]:
         out.append(
             {
                 "date": date,
+                "mode": mode,
                 "net": net,
                 "round": round_n,
                 "correct": correct,
