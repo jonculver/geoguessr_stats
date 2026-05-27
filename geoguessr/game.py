@@ -63,6 +63,13 @@ class GeoguessrDuelRound:
     pano_id: str = ""
     pano_lat: Optional[float] = None
     pano_lng: Optional[float] = None
+    # Duel multipliers ("multis")
+    round_multiplier: float = 1.0
+    round_damage_multiplier: float = 1.0
+    team_multiplier: float = 1.0
+    opponent_multiplier: float = 1.0
+    team_active_multiplier: bool = False
+    opponent_active_multiplier: bool = False
     # Map of playerId -> {"lat": <float>, "lng": <float>}.
     # Saved for all players present in the duel payload.
     # When available, entries also include a best-effort "country_code".
@@ -125,6 +132,12 @@ class GeoguessrDuelGame:
                 damage_dealt=round_data.get('damage_dealt', 0),
                 damage_taken=round_data.get('damage_taken', 0),
                 guessed_first=round_data.get('guessed_first', False),
+                round_multiplier=round_data.get('round_multiplier', 1.0) or 1.0,
+                round_damage_multiplier=round_data.get('round_damage_multiplier', 1.0) or 1.0,
+                team_multiplier=round_data.get('team_multiplier', 1.0) or 1.0,
+                opponent_multiplier=round_data.get('opponent_multiplier', 1.0) or 1.0,
+                team_active_multiplier=bool(round_data.get('team_active_multiplier', False)),
+                opponent_active_multiplier=bool(round_data.get('opponent_active_multiplier', False)),
                 guess_locations=guess_locations,
             ))
         
@@ -266,6 +279,14 @@ class GeoguessrDuelGame:
             except Exception:
                 return None
 
+        def to_float_default(value, default: float = 1.0) -> float:
+            try:
+                if value is None:
+                    return default
+                return float(value)
+            except Exception:
+                return default
+
         guess_cc_cache: dict[tuple[float, float], str] = {}
 
         def guess_country_code(lat: float, lng: float) -> str:
@@ -383,6 +404,14 @@ class GeoguessrDuelGame:
             damage_dealt = to_int(rr.get('damageDealt', 0)) if rr else 0
             damage_taken = to_int(opp_rr.get('damageDealt', 0)) if opp_rr else 0
 
+            round_multiplier = to_float_default(r.get('multiplier', 1.0), 1.0)
+            round_damage_multiplier = to_float_default(r.get('damageMultiplier', 1.0), 1.0)
+
+            team_multiplier = to_float_default(rr.get('multiplier', 1.0), 1.0) if rr else 1.0
+            opponent_multiplier = to_float_default(opp_rr.get('multiplier', 1.0), 1.0) if opp_rr else 1.0
+            team_active_multiplier = bool(rr.get('activeMultiplier', False)) if rr else False
+            opponent_active_multiplier = bool(opp_rr.get('activeMultiplier', False)) if opp_rr else False
+
             # determine which team guessed first by comparing the earliest
             # guess timestamps for this round among all players on each team.
             def earliest_guess_time(team_obj) -> Optional[datetime]:
@@ -420,6 +449,12 @@ class GeoguessrDuelGame:
                                           damage_dealt=damage_dealt,
                                           damage_taken=damage_taken,
                                           guessed_first=guessed_first,
+                                          round_multiplier=round_multiplier,
+                                          round_damage_multiplier=round_damage_multiplier,
+                                          team_multiplier=team_multiplier,
+                                          opponent_multiplier=opponent_multiplier,
+                                          team_active_multiplier=team_active_multiplier,
+                                          opponent_active_multiplier=opponent_active_multiplier,
                                           guess_locations=all_guess_locations.get(int(rn), {}) if rn is not None else {}))
             
         # Calculate total elapsed time

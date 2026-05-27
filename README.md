@@ -104,6 +104,11 @@ Duel round entries include additional location detail:
 - `pano_id`: the Street View panorama id for the round
 - `guess_locations`: a map of `playerId -> {lat, lng, country_code?}` for each player's guess on that round
 
+Duel round entries also include multiplier ("multi") information:
+- `round_multiplier` / `round_damage_multiplier`: the round-level multipliers from the duel payload
+- `team_multiplier` / `opponent_multiplier`: per-team multipliers for that round
+- `team_active_multiplier` / `opponent_active_multiplier`: whether the multiplier was active for each team
+
 ### Country (Per-round listing)
 
 List duel rounds where the *actual* round country matches a given 2-letter code. Output includes the net damage, whether your guess was the correct country (when available), and useful URLs.
