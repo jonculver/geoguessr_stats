@@ -236,7 +236,7 @@
           <table>
             <thead>
               <tr>
-                <th>#</th><th>Date</th><th>Mode</th><th>Damage Taken</th><th>Country correct</th><th>Duel</th><th>Street View</th>
+                <th>#</th><th>Date</th><th>Duel Type</th><th>Damage Taken</th><th>Country correct</th><th>Duel</th><th>Street View</th>
               </tr>
             </thead>
             <tbody>
@@ -244,7 +244,7 @@
                 <tr>
                   <td>{{ loop.index }}</td>
                   <td class="mono">{{r.date}}</td>
-                  <td class="mono">{{r.mode}}</td>
+                  <td class="mono">{{r.duel_type}}</td>
                   <td class="mono">{{r.net}}</td>
                   <td class="mono">{{r.correct}}</td>
                   <td>

@@ -150,14 +150,16 @@ def country_command(args):
     player_data = PlayerData(username)
 
     if include == "ranked":
-        duel_games = list(player_data.ranked_duel_games)
+        duel_games: list[tuple[object, str]] = [(g, "Ranked") for g in list(player_data.ranked_duel_games)]
     elif include == "unranked":
-        duel_games = list(player_data.unranked_duel_games)
+        duel_games = [(g, "Unranked") for g in list(player_data.unranked_duel_games)]
     else:
-        duel_games = list(player_data.ranked_duel_games) + list(player_data.unranked_duel_games)
+        duel_games = [(g, "Ranked") for g in list(player_data.ranked_duel_games)] + [
+            (g, "Unranked") for g in list(player_data.unranked_duel_games)
+        ]
 
     if mode is not None:
-        duel_games = [g for g in duel_games if getattr(g, "mode", None) == mode]
+        duel_games = [(g, t) for (g, t) in duel_games if getattr(g, "mode", None) == mode]
 
     if max_games is not None:
         if max_games <= 0:
@@ -246,7 +248,7 @@ def country_command(args):
     # Heuristic warning: older output JSON (fetched before multiplier support) will load with
     # default multiplier values (1.0 / False), which makes normalized net misleading.
     sample_rounds = []
-    for g in duel_games[: min(len(duel_games), 25)]:
+    for g, _t in duel_games[: min(len(duel_games), 25)]:
         sample_rounds.extend((getattr(g, "rounds", []) or [])[:10])
     if sample_rounds:
         missing = sum(1 for r in sample_rounds if multiplier_fields_look_missing(r))
@@ -280,7 +282,7 @@ def country_command(args):
         return False
 
     rows: list[tuple[float, float, str]] = []
-    for game in duel_games:
+    for game, duel_type in duel_games:
         mode_value = getattr(game, "mode", None)
         if mode_value == GameMode.NO_MOVE:
             mode_display = "NM"
@@ -319,7 +321,7 @@ def country_command(args):
             game_id = getattr(game, 'game_id', '')
             game_url = f"https://www.geoguessr.com/duels/{game_id}" if game_id else ""
             net_display = int(round(net_damage))
-            line = f"  {date} mode={mode_display} net={net_display} round={i} correct={correct}\n    {game_url}\n    {sv_url}\n"
+            line = f"  {date} duel={duel_type} mode={mode_display} net={net_display} round={i} correct={correct}\n    {game_url}\n    {sv_url}\n"
             rows.append((net_damage, parse_ts(start_time), line))
 
     # Sort by net damage (lowest first), then by time for stability.
