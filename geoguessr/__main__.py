@@ -132,6 +132,7 @@ def country_command(args):
     username = args.username
     country = args.country
     max_games = args.max_games
+    include = args.include
 
     if not country or len(country.strip()) != 2:
         print("Country must be a 2-letter country code (e.g. 'US')")
@@ -140,7 +141,12 @@ def country_command(args):
     target_cc = country.strip().upper()
     player_data = PlayerData(username)
 
-    duel_games = list(player_data.ranked_duel_games) + list(player_data.unranked_duel_games)
+    if include == "ranked":
+        duel_games = list(player_data.ranked_duel_games)
+    elif include == "unranked":
+        duel_games = list(player_data.unranked_duel_games)
+    else:
+        duel_games = list(player_data.ranked_duel_games) + list(player_data.unranked_duel_games)
 
     if max_games is not None:
         if max_games <= 0:
@@ -466,6 +472,7 @@ def main():
     country_parser = subparsers.add_parser("country", help="List duel rounds for a country")
     country_parser.add_argument("username", type=str, help="Username to analyse")
     country_parser.add_argument("country", type=str, help="2-letter country code (e.g. US)")
+    country_parser.add_argument("--include", choices=["ranked", "unranked", "both"], default="both", help="Which games to include")
     country_parser.add_argument("--max-games", type=int, default=None, help="Limit to the most recent N games")
     country_parser.set_defaults(func=country_command)
 
