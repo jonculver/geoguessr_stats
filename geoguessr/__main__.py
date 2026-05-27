@@ -131,6 +131,7 @@ def country_command(args):
     """List duel rounds for a given country."""
     username = args.username
     country = args.country
+    max_games = args.max_games
 
     if not country or len(country.strip()) != 2:
         print("Country must be a 2-letter country code (e.g. 'US')")
@@ -140,6 +141,11 @@ def country_command(args):
     player_data = PlayerData(username)
 
     duel_games = list(player_data.ranked_duel_games) + list(player_data.unranked_duel_games)
+
+    if max_games is not None:
+        if max_games <= 0:
+            print("--max-games must be a positive integer")
+            sys.exit(1)
 
     def decode_pano_id(pano_id: str) -> str:
         """Decode stored pano_id.
@@ -182,6 +188,18 @@ def country_command(args):
             return datetime.fromisoformat(s).timestamp()
         except Exception:
             return float("-inf")
+
+    def game_ts(game) -> float:
+        ts = getattr(game, "start_time", "") or getattr(game, "time", "") or ""
+        parsed = parse_ts(ts)
+        if parsed != float("-inf"):
+            return parsed
+        # Fallback: use the most recent round start time.
+        round_ts = [parse_ts(getattr(r, "start_time", "") or "") for r in getattr(game, "rounds", []) or []]
+        return max(round_ts) if round_ts else float("-inf")
+
+    if max_games is not None:
+        duel_games = sorted(duel_games, key=game_ts, reverse=True)[:max_games]
 
     rows: list[tuple[float, str]] = []
     for game in duel_games:
@@ -448,6 +466,7 @@ def main():
     country_parser = subparsers.add_parser("country", help="List duel rounds for a country")
     country_parser.add_argument("username", type=str, help="Username to analyse")
     country_parser.add_argument("country", type=str, help="2-letter country code (e.g. US)")
+    country_parser.add_argument("--max-games", type=int, default=None, help="Limit to the most recent N games")
     country_parser.set_defaults(func=country_command)
 
     # Analyse subcommand
