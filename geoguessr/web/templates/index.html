@@ -147,7 +147,7 @@
                       <td data-sort-value="{{r.win}}">{{r.win}}</td>
                       <td>{{r.rounds}}</td>
                       <td>
-                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}">Show Rounds with Damage Taken</a>
+                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}&both_correct=true{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}">Show Rounds with Damage Taken</a>
                       </td>
                     </tr>
                   {% endfor %}
