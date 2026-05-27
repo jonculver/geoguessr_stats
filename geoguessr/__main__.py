@@ -336,10 +336,10 @@ def analyse_command(args):
         print(f"  Games: {len(duel_games)}")
         print(f"  Countries: {len(stats)}")
 
-        for s in stats:
+        for idx, s in enumerate(stats, start=1):
             avg_net = avg_net_damage(s)
             print(
-                f"  {s.country_code} {s.name}: avg_net={avg_net:.2f} "
+                f"  {idx} {s.country_code} {s.name}: avg_net={avg_net:.2f} "
                 f"rounds={s.total_rounds} win%={s.win_percentage}"
             )
         return
@@ -388,9 +388,9 @@ def analyse_command(args):
         print(f"  Games: {len(duel_games)}")
         print(f"  Countries: {len(rows)}")
 
-        for cc, wrong, total, wrong_pct in rows:
+        for idx, (cc, wrong, total, wrong_pct) in enumerate(rows, start=1):
             name = country_code_to_name(cc)
-            print(f"  {cc} {name}: wrong%={wrong_pct:.1f} wrong={wrong} rounds={total}")
+            print(f"  {idx} {cc} {name}: wrong%={wrong_pct:.1f} wrong={wrong} rounds={total}")
         return
 
     # --type region
@@ -407,10 +407,10 @@ def analyse_command(args):
     print(f"  Games: {len(duel_games)}")
     print(f"  Regions: {len(stats)}")
 
-    for s in stats:
+    for idx, s in enumerate(stats, start=1):
         avg_net = avg_net_damage(s)
         print(
-            f"  {s.country_code} {s.name}: avg_net={avg_net:.2f} "
+            f"  {idx} {s.country_code} {s.name}: avg_net={avg_net:.2f} "
             f"rounds={s.total_rounds} win%={s.win_percentage}"
         )
 
