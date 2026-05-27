@@ -164,6 +164,17 @@ def country_command(args):
             print("--max-games must be a positive integer")
             sys.exit(1)
 
+    def multiplier_fields_look_missing(duel_round) -> bool:
+        try:
+            team_multi = float(getattr(duel_round, "team_multiplier", 1.0) or 1.0)
+            opp_multi = float(getattr(duel_round, "opponent_multiplier", 1.0) or 1.0)
+        except Exception:
+            team_multi = 1.0
+            opp_multi = 1.0
+        team_active = bool(getattr(duel_round, "team_active_multiplier", False))
+        opp_active = bool(getattr(duel_round, "opponent_active_multiplier", False))
+        return team_multi == 1.0 and opp_multi == 1.0 and (not team_active) and (not opp_active)
+
     def decode_pano_id(pano_id: str) -> str:
         """Decode stored pano_id.
 
@@ -231,6 +242,22 @@ def country_command(args):
 
     if max_games is not None:
         duel_games = sorted(duel_games, key=game_ts, reverse=True)[:max_games]
+
+    # Heuristic warning: older output JSON (fetched before multiplier support) will load with
+    # default multiplier values (1.0 / False), which makes normalized net misleading.
+    sample_rounds = []
+    for g in duel_games[: min(len(duel_games), 25)]:
+        sample_rounds.extend((getattr(g, "rounds", []) or [])[:10])
+    if sample_rounds:
+        missing = sum(1 for r in sample_rounds if multiplier_fields_look_missing(r))
+    else:
+        missing = 0
+    if sample_rounds and missing:
+        print(
+            f"Warning: duel multipliers appear missing for {missing}/{len(sample_rounds)} sampled rounds; "
+            "run `python -m geoguessr fetch <user> --overwrite --max-games N` to backfill.",
+            file=sys.stderr,
+        )
 
     rows: list[tuple[float, str]] = []
     for game in duel_games:
@@ -353,6 +380,31 @@ def analyse_command(args):
         # Ensure we always take the most recent games (especially for --include both).
         duel_games.sort(key=_parse_game_timestamp, reverse=True)
         duel_games = duel_games[: args.max_games]
+
+    def multiplier_fields_look_missing(duel_round) -> bool:
+        try:
+            team_multi = float(getattr(duel_round, "team_multiplier", 1.0) or 1.0)
+            opp_multi = float(getattr(duel_round, "opponent_multiplier", 1.0) or 1.0)
+        except Exception:
+            team_multi = 1.0
+            opp_multi = 1.0
+        team_active = bool(getattr(duel_round, "team_active_multiplier", False))
+        opp_active = bool(getattr(duel_round, "opponent_active_multiplier", False))
+        return team_multi == 1.0 and opp_multi == 1.0 and (not team_active) and (not opp_active)
+
+    sample_rounds = []
+    for g in duel_games[: min(len(duel_games), 25)]:
+        sample_rounds.extend((getattr(g, "rounds", []) or [])[:10])
+    if sample_rounds:
+        missing = sum(1 for r in sample_rounds if multiplier_fields_look_missing(r))
+    else:
+        missing = 0
+    if sample_rounds and missing:
+        print(
+            f"Warning: duel multipliers appear missing for {missing}/{len(sample_rounds)} sampled rounds; "
+            "run `python -m geoguessr fetch <user> --overwrite --max-games N` to backfill.",
+            file=sys.stderr,
+        )
 
     def _round_both_players_correct_country(duel_round) -> bool:
         """True iff both players guessed the panorama country for this round."""

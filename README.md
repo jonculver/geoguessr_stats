@@ -109,6 +109,8 @@ Duel round entries also include multiplier ("multi") information:
 - `team_multiplier` / `opponent_multiplier`: per-team multipliers for that round
 - `team_active_multiplier` / `opponent_active_multiplier`: whether the multiplier was active for each team
 
+If your `output/*_duels.json` files were generated before multiplier fields were added, they will load with defaults (`1.0` / `False`). In that case, re-run `fetch` with `--overwrite` to backfill multipliers.
+
 ### Country (Per-round listing)
 
 List duel rounds where the *actual* round country matches a given 2-letter code. Output includes the net damage, whether your guess was the correct country (when available), and useful URLs.
