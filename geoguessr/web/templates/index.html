@@ -113,24 +113,44 @@
               </tbody>
             </table>
           {% else %}
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th><th>Country</th><th>Average net damage taken</th><th>Rounds</th><th>Win %</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for r in analyse.rows %}
+            {% if analyse.form.type in ["region", "win-percentage"] %}
+              <table>
+                <thead>
                   <tr>
-                    <td>{{r.idx}}</td>
-                    <td>{{r.name}}</td>
-                    <td>{{"%.2f"|format(r.avg_net)}}</td>
-                    <td>{{r.rounds}}</td>
-                    <td>{{r.win}}</td>
+                    <th>#</th><th>Country</th><th>Average net damage taken</th><th>Rounds</th><th>Win %</th>
                   </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {% for r in analyse.rows %}
+                    <tr>
+                      <td>{{r.idx}}</td>
+                      <td>{{r.name}}</td>
+                      <td>{{"%.2f"|format(r.avg_net)}}</td>
+                      <td>{{r.rounds}}</td>
+                      <td>{{r.win}}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            {% else %}
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th><th>Country</th><th>Average net damage taken</th><th>Rounds</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for r in analyse.rows %}
+                    <tr>
+                      <td>{{r.idx}}</td>
+                      <td>{{r.name}}</td>
+                      <td>{{"%.2f"|format(r.avg_net)}}</td>
+                      <td>{{r.rounds}}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            {% endif %}
           {% endif %}
         {% endif %}
         </div>
