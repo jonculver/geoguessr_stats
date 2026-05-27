@@ -43,10 +43,9 @@ For every user to collect stats for find their token as follows:
 
 1. Make sure they have logged in to Geoguessr in this browser
 2. Have them visit `https://www.geoguessr.com/api/v3/profiles`
-3. Inspect the page and go to the network tab
-4. Refresh the page. Under Headers -> Set Cookie, look for
-    ```_ncfa=<token>```
-5. Copy the token into `users.json`
+3. Open DevTools and go to **Application** (sometimes called **Storage**)
+4. In the left sidebar, go to **Storage** → **Cookies** → `https://www.geoguessr.com`
+5. Find the cookie named `_ncfa` and copy its value into `users.json`
 
 ## Usage
 
