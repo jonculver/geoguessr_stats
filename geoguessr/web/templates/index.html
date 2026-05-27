@@ -144,7 +144,7 @@
               <table>
                 <thead>
                   <tr>
-                    <th>#</th><th>Country</th><th>Average net damage taken</th><th>Number of Rounds</th><th>Win %</th>
+                    <th>#</th><th>Country</th><th>Win %</th><th>Number of Rounds</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -152,9 +152,8 @@
                     <tr>
                       <td>{{r.idx}}</td>
                       <td>{{r.name}}</td>
-                      <td>{{"%.2f"|format(r.avg_net)}}</td>
-                      <td>{{r.rounds}}</td>
                       <td>{{r.win}}</td>
+                      <td>{{r.rounds}}</td>
                     </tr>
                   {% endfor %}
                 </tbody>
