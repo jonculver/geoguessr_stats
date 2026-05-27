@@ -192,6 +192,8 @@ def country_command(args):
                 continue
 
             net_damage = (getattr(duel_round, "damage_taken", 0) or 0) - (getattr(duel_round, "damage_dealt", 0) or 0)
+            if net_damage <= 0:
+                continue
             pano_id = getattr(duel_round, "pano_id", "") or ""
             sv_url = streetview_url_from_pano_id(pano_id)
             start_time = getattr(duel_round, "start_time", "") or ""
