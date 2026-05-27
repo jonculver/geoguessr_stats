@@ -261,7 +261,23 @@ def country_command(args):
 
     def has_two_guess_locations(duel_round) -> bool:
         guess_locations = getattr(duel_round, "guess_locations", None) or {}
-        return isinstance(guess_locations, dict) and len(guess_locations) >= 2
+        if not isinstance(guess_locations, dict):
+            return False
+        valid = 0
+        for info in guess_locations.values():
+            if not isinstance(info, dict):
+                continue
+            lat = info.get("lat")
+            lng = info.get("lng")
+            try:
+                float(lat)
+                float(lng)
+            except Exception:
+                continue
+            valid += 1
+            if valid >= 2:
+                return True
+        return False
 
     rows: list[tuple[float, float, str]] = []
     for game in duel_games:
@@ -415,7 +431,23 @@ def analyse_command(args):
 
     def has_two_guess_locations(duel_round) -> bool:
         guess_locations = getattr(duel_round, "guess_locations", None) or {}
-        return isinstance(guess_locations, dict) and len(guess_locations) >= 2
+        if not isinstance(guess_locations, dict):
+            return False
+        valid = 0
+        for info in guess_locations.values():
+            if not isinstance(info, dict):
+                continue
+            lat = info.get("lat")
+            lng = info.get("lng")
+            try:
+                float(lat)
+                float(lng)
+            except Exception:
+                continue
+            valid += 1
+            if valid >= 2:
+                return True
+        return False
 
     def _round_both_players_correct_country(duel_round) -> bool:
         """True iff both players guessed the panorama country for this round."""
