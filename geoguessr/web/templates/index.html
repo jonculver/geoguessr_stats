@@ -43,9 +43,8 @@
 
       <div id="tab-panel-analyse" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-analyse">
         <div class="tab-content">
-          <div class="card">
-        <h2>Analyse</h2>
-        <form method="post" action="/analyse">
+          <h2>Analyse</h2>
+          <form method="post" action="/analyse">
           <label>Username</label>
           <select name="username" required>
             {% for u in usernames %}
@@ -84,7 +83,7 @@
           <input type="number" name="min_rounds" min="0" value="{{ analyse.form.min_rounds if analyse and analyse.form.min_rounds is not none else '' }}" />
 
           <button type="submit">Run analyse</button>
-        </form>
+          </form>
 
         {% if analyse %}
           {% if analyse.stderr %}
@@ -133,17 +132,13 @@
             </table>
           {% endif %}
         {% endif %}
-      </div>
-
-          </div>
         </div>
       </div>
 
       <div id="tab-panel-country" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-country">
         <div class="tab-content">
-          <div class="card">
-        <h2>Country</h2>
-        <form method="post" action="/country">
+          <h2>Country</h2>
+          <form method="post" action="/country">
           {% set cf = country.form if country else country_form %}
           <label>Username</label>
           <select name="username" required>
@@ -184,7 +179,7 @@
           <input type="number" name="max_games" min="1" value="{{ cf.max_games if cf and cf.max_games is not none else '' }}" />
 
           <button type="submit">Run country</button>
-        </form>
+          </form>
 
         {% if country %}
           {% if country.stderr %}
@@ -212,9 +207,6 @@
             </tbody>
           </table>
         {% endif %}
-      </div>
-
-          </div>
         </div>
       </div>
     </div>
