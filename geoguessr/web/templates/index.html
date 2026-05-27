@@ -11,7 +11,8 @@
       .tab-frame { border: 1px solid #ddd; border-radius: 10px; overflow: hidden; margin-top: 16px; }
       .tabs { display: flex; align-items: flex-end; gap: 8px; padding: 10px 12px 0 12px; background: #f7f7f7; border-bottom: 1px solid #ddd; }
       .tab-btn { padding: 9px 12px; border: 1px solid #ddd; border-bottom: none; border-radius: 10px 10px 0 0; background: #f7f7f7; cursor: pointer; font-weight: 600; position: relative; z-index: 1; }
-      .tab-btn[aria-selected="true"] { background: #fff; color: #111; margin-bottom: -1px; z-index: 2; }
+      .tab-btn[aria-selected="true"] { background: #fff; color: #111; top: 1px; z-index: 2; }
+      .tab-btn[aria-selected="true"]::after { content: ""; position: absolute; left: -1px; right: -1px; bottom: -1px; height: 2px; background: #fff; }
       .tab-btn:focus { outline: none; }
       .tab-panel { display: none; background: #fff; }
       .tab-panel.active { display: block; }
