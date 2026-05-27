@@ -227,12 +227,26 @@
           <input type="number" name="max_games" min="1" value="{{ cf.max_games if cf and cf.max_games is not none else '' }}" />
           <div class="help">This number of the most recent games will be analysed.</div>
 
-          <button type="submit">Run country</button>
+          <button type="submit">Show Rounds</button>
           </form>
 
         {% if country %}
           {% if country.stderr %}
             <div class="warn">{{ country.stderr }}</div>
+          {% endif %}
+
+          {% set selected_cc = (country.form.country|upper) if country.form and country.form.country else '' %}
+          {% set ns = namespace(country_name=selected_cc) %}
+          {% if country_options and country_options|length > 0 %}
+            {% for opt in country_options %}
+              {% if opt.cc == selected_cc %}
+                {% set ns.country_name = opt.name %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+
+          {% if ns.country_name %}
+            <h3 style="margin: 16px 0 0 0;">{{ ns.country_name }}</h3>
           {% endif %}
 
           <table>
