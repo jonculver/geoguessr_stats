@@ -378,7 +378,7 @@ def analyse_command(args):
             return float("-inf")
 
     analysis_type = args.type
-    if analysis_type is not None and analysis_type not in {"region", "wrong-country"}:
+    if analysis_type is not None and analysis_type not in {"region", "wrong-country", "win-percentage"}:
         print(f"Unknown analysis type: {analysis_type}")
         sys.exit(1)
 
@@ -488,16 +488,35 @@ def analyse_command(args):
             sys.exit(1)
         stats = [s for s in stats if s.total_rounds >= args.min_rounds]
 
-    if analysis_type is None:
-        def avg_net_damage(s: CountryStats) -> float:
-            rounds = rounds_by_country.get(s.country_code, [])
-            if not rounds:
-                return 0.0
-            return sum(_net_damage_normalized(r) for r in rounds) / len(rounds)
+    def avg_net_damage(s: CountryStats) -> float:
+        rounds = rounds_by_country.get(s.country_code, [])
+        if not rounds:
+            return 0.0
+        return sum(_net_damage_normalized(r) for r in rounds) / len(rounds)
 
+    if analysis_type is None:
         stats.sort(key=avg_net_damage, reverse=True)
 
         print(f"Country net damage (avg taken/opponent_multi - dealt/team_multi) for {args.username}")
+        print(f"  Include: {include}")
+        print(f"  Mode: {mode.value if mode else 'All'}")
+        print(f"  Games: {len(duel_games)}")
+        print(f"  Countries: {len(stats)}")
+
+        for idx, s in enumerate(stats, start=1):
+            avg_net = avg_net_damage(s)
+            print(
+                f"  {idx} {s.country_code} {s.name}: avg_net={avg_net:.2f} "
+                f"rounds={s.total_rounds} win%={s.win_percentage}"
+            )
+        return
+
+    if analysis_type == "win-percentage":
+        # Rank countries by the percentage of rounds won.
+        # (This uses the existing CountryStats.win_percentage metric.)
+        stats.sort(key=lambda s: (s.win_percentage, s.total_rounds, avg_net_damage(s)), reverse=True)
+
+        print(f"Win-percentage analysis for {args.username}")
         print(f"  Include: {include}")
         print(f"  Mode: {mode.value if mode else 'All'}")
         print(f"  Games: {len(duel_games)}")
@@ -563,12 +582,6 @@ def analyse_command(args):
         return
 
     # --type region
-    def avg_net_damage(s: CountryStats) -> float:
-        rounds = rounds_by_country.get(s.country_code, [])
-        if not rounds:
-            return 0.0
-        return sum(_net_damage_normalized(r) for r in rounds) / len(rounds)
-
     stats.sort(key=avg_net_damage, reverse=True)
 
     print(f"Region analysis for {args.username}")
@@ -648,7 +661,7 @@ def main():
     # Analyse subcommand
     analyse_parser = subparsers.add_parser("analyse", help="Analyse player data")
     analyse_parser.add_argument("username", type=str, help="Username to analyse")
-    analyse_parser.add_argument("-type", "--type", choices=["region", "wrong-country"], default=None, help="Analysis type")
+    analyse_parser.add_argument("-type", "--type", choices=["region", "wrong-country", "win-percentage"], default=None, help="Analysis type")
     analyse_parser.add_argument("-mode", "--mode", choices=["moving", "nm", "nmpz"], default=None, help="Game mode filter")
     analyse_parser.add_argument("-include", "--include", choices=["ranked", "unranked", "both"], default="both", help="Which games to include")
     analyse_parser.add_argument("--max-games", type=int, default=None, help="Limit analysis to the most recent N games")

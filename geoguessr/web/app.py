@@ -194,7 +194,7 @@ def create_app() -> FastAPI:
     def run_analyse(
         request: Request,
         username: str = Form(...),
-        analysis_type: Optional[Literal["region", "wrong-country"]] = Form(None),
+        analysis_type: Optional[Literal["region", "wrong-country", "win-percentage"]] = Form(None),
         mode: Optional[Literal["moving", "nm", "nmpz"]] = Form(None),
         include: Literal["ranked", "unranked", "both"] = Form("both"),
         max_games: Optional[int] = Form(None),
