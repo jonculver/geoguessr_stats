@@ -37,7 +37,7 @@
     <div class="tab-frame">
       <div class="tabs" role="tablist" aria-label="GeoGuessr Stats Tabs">
         <button class="tab-btn" id="tab-btn-analyse" type="button" role="tab" aria-controls="tab-panel-analyse" aria-selected="false" data-tab="analyse">Duels Analysis</button>
-        <button class="tab-btn" id="tab-btn-country" type="button" role="tab" aria-controls="tab-panel-country" aria-selected="false" data-tab="country">Country</button>
+        <button class="tab-btn" id="tab-btn-country" type="button" role="tab" aria-controls="tab-panel-country" aria-selected="false" data-tab="country">Country Analysis</button>
       </div>
 
       <div id="tab-panel-analyse" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-analyse">
@@ -136,7 +136,7 @@
 
       <div id="tab-panel-country" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-country">
         <div class="tab-content">
-          <h2>Country</h2>
+          <h2>Country Analysis</h2>
           <form method="post" action="/country">
           {% set cf = country.form if country else country_form %}
           <label>Username</label>
