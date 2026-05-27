@@ -33,6 +33,22 @@ def _run_command_capture(func, args_obj) -> tuple[str, str]:
     return stdout_buf.getvalue(), stderr_buf.getvalue()
 
 
+def _team_duel_teammates_for_user(repo_root: Path, username: str) -> list[str]:
+    output_dir = repo_root / "output"
+    if not username or not output_dir.exists():
+        return []
+    pattern = re.compile(rf"^{re.escape(username)}_(?P<teammate>.+)_ranked_team_duels\.json$")
+    teammates: set[str] = set()
+    for p in output_dir.glob(f"{username}_*_ranked_team_duels.json"):
+        m = pattern.match(p.name)
+        if not m:
+            continue
+        teammate = (m.group("teammate") or "").strip()
+        if teammate:
+            teammates.add(teammate)
+    return sorted(teammates, key=lambda s: s.lower())
+
+
 _ANALYSE_ROW_RE = re.compile(
     r"^\s*(?P<idx>\d+)\s+(?P<cc>[A-Z?]{2})\s+(?P<name>.*?):\s+avg_net=(?P<avg>[-0-9.]+)\s+rounds=(?P<rounds>\d+)\s+win%=(?P<win>[-0-9.]+)\s*$"
 )
@@ -122,7 +138,7 @@ def _parse_country(stdout_text: str) -> list[dict[str, Any]]:
 
 def _country_options_for_user(
     username: str,
-    include: Literal["ranked", "unranked", "both"],
+    include: str,
     mode: Optional[Literal["moving", "nm", "nmpz"]],
     max_games: Optional[int],
 ) -> list[dict[str, str]]:
@@ -159,7 +175,7 @@ def create_app() -> FastAPI:
     def index(request: Request):
         usernames = _load_usernames(repo_root)
         default_username = usernames[0] if usernames else ""
-        default_include: Literal["ranked", "unranked", "both"] = "both"
+        default_include: str = "both"
         default_mode: Optional[Literal["moving", "nm", "nmpz"]] = None
         default_max_games: Optional[int] = None
         default_country = ""
@@ -180,6 +196,12 @@ def create_app() -> FastAPI:
             {
                 "request": request,
                 "usernames": usernames,
+                "analyse_teammates": _team_duel_teammates_for_user(repo_root, default_username)
+                if default_username
+                else [],
+                "country_teammates": _team_duel_teammates_for_user(repo_root, default_username)
+                if default_username
+                else [],
                 "analyse": None,
                 "country": None,
                 "country_form": {
@@ -199,7 +221,7 @@ def create_app() -> FastAPI:
         username: str = Form(...),
         analysis_type: Optional[Literal["region", "wrong-country", "win-percentage"]] = Form(None),
         mode: Optional[Literal["moving", "nm", "nmpz"]] = Form(None),
-        include: Literal["ranked", "unranked", "both"] = Form("both"),
+        include: str = Form("both"),
         max_games: Optional[int] = Form(None),
         min_rounds: Optional[int] = Form(None),
     ):
@@ -222,6 +244,8 @@ def create_app() -> FastAPI:
             {
                 "request": request,
                 "usernames": _load_usernames(repo_root),
+                "analyse_teammates": _team_duel_teammates_for_user(repo_root, username) if username else [],
+                "country_teammates": _team_duel_teammates_for_user(repo_root, username) if username else [],
                 "analyse": {
                     "form": {
                         "username": username,
@@ -254,7 +278,7 @@ def create_app() -> FastAPI:
         username: str = Form(...),
         country: str = Form(...),
         mode: Optional[Literal["moving", "nm", "nmpz"]] = Form(None),
-        include: Literal["ranked", "unranked", "both"] = Form("both"),
+        include: str = Form("both"),
         max_games: Optional[int] = Form(None),
     ):
         class Args:
@@ -277,6 +301,8 @@ def create_app() -> FastAPI:
             {
                 "request": request,
                 "usernames": _load_usernames(repo_root),
+                "analyse_teammates": _team_duel_teammates_for_user(repo_root, username) if username else [],
+                "country_teammates": _team_duel_teammates_for_user(repo_root, username) if username else [],
                 "analyse": None,
                 "country": {
                     "form": {
@@ -306,7 +332,7 @@ def create_app() -> FastAPI:
         username: str,
         country: str,
         mode: Optional[Literal["moving", "nm", "nmpz"]] = None,
-        include: Literal["ranked", "unranked", "both"] = "both",
+        include: str = "both",
         max_games: Optional[int] = None,
     ):
         class Args:
@@ -329,6 +355,8 @@ def create_app() -> FastAPI:
             {
                 "request": request,
                 "usernames": _load_usernames(repo_root),
+                "analyse_teammates": _team_duel_teammates_for_user(repo_root, username) if username else [],
+                "country_teammates": _team_duel_teammates_for_user(repo_root, username) if username else [],
                 "analyse": None,
                 "country": {
                     "form": {

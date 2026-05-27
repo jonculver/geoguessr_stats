@@ -67,7 +67,13 @@
             <option value="both" {% if inc=="both" %}selected{% endif %}>Ranked and Unranked Solo</option>
             <option value="ranked" {% if inc=="ranked" %}selected{% endif %}>Ranked Solo</option>
             <option value="unranked" {% if inc=="unranked" %}selected{% endif %}>Unranked Solo</option>
-          </select>
+              {% if analyse_teammates %}
+                {% for t in analyse_teammates %}
+                  {% set v = "team:" ~ t %}
+                  <option value="{{ v }}" {% if inc==v %}selected{% endif %}>Ranked Team Duels (with {{ t }})</option>
+                {% endfor %}
+              {% endif %}
+            </select>
 
           <label>Mode</label>
           <select name="mode">
@@ -224,6 +230,12 @@
             <option value="both" {% if inc2=="both" %}selected{% endif %}>Ranked and Unranked Solo</option>
             <option value="ranked" {% if inc2=="ranked" %}selected{% endif %}>Ranked Solo</option>
             <option value="unranked" {% if inc2=="unranked" %}selected{% endif %}>Unranked Solo</option>
+              {% if country_teammates %}
+                {% for t in country_teammates %}
+                  {% set v = "team:" ~ t %}
+                  <option value="{{ v }}" {% if inc2==v %}selected{% endif %}>Ranked Team Duels (with {{ t }})</option>
+                {% endfor %}
+              {% endif %}
           </select>
 
           <label>Mode</label>

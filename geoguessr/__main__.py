@@ -149,14 +149,21 @@ def country_command(args):
     target_cc = country.strip().upper()
     player_data = PlayerData(username)
 
-    if include == "ranked":
-        duel_games: list[tuple[object, str]] = [(g, "Ranked") for g in list(player_data.ranked_duel_games)]
+    if isinstance(include, str) and include.startswith("team:"):
+        teammate = include.split(":", 1)[1].strip()
+        team_games = list(player_data.ranked_team_duel_games.get(teammate, []))
+        duel_games: list[tuple[object, str]] = [(g, f"Team-{teammate}") for g in team_games]
+    elif include == "ranked":
+        duel_games = [(g, "Ranked") for g in list(player_data.ranked_duel_games)]
     elif include == "unranked":
         duel_games = [(g, "Unranked") for g in list(player_data.unranked_duel_games)]
-    else:
+    elif include == "both" or not include:
         duel_games = [(g, "Ranked") for g in list(player_data.ranked_duel_games)] + [
             (g, "Unranked") for g in list(player_data.unranked_duel_games)
         ]
+    else:
+        print(f"Unknown --include value: {include}")
+        sys.exit(1)
 
     if mode is not None:
         duel_games = [(g, t) for (g, t) in duel_games if getattr(g, "mode", None) == mode]
@@ -397,12 +404,18 @@ def analyse_command(args):
     player_data = PlayerData(args.username)
 
     include = args.include
-    if include == "ranked":
+    if isinstance(include, str) and include.startswith("team:"):
+        teammate = include.split(":", 1)[1].strip()
+        duel_games = list(player_data.ranked_team_duel_games.get(teammate, []))
+    elif include == "ranked":
         duel_games = list(player_data.ranked_duel_games)
     elif include == "unranked":
         duel_games = list(player_data.unranked_duel_games)
-    else:
+    elif include == "both" or not include:
         duel_games = list(player_data.ranked_duel_games) + list(player_data.unranked_duel_games)
+    else:
+        print(f"Unknown --include value: {include}")
+        sys.exit(1)
 
     mode = _parse_analyse_mode(args.mode)
     if mode:
@@ -665,7 +678,11 @@ def main():
     country_parser = subparsers.add_parser("country", help="List duel rounds for a country")
     country_parser.add_argument("username", type=str, help="Username to analyse")
     country_parser.add_argument("country", type=str, help="2-letter country code (e.g. US)")
-    country_parser.add_argument("--include", choices=["ranked", "unranked", "both"], default="both", help="Which games to include")
+    country_parser.add_argument(
+        "--include",
+        default="both",
+        help="Which games to include: ranked | unranked | both | team:<teammate>",
+    )
     country_parser.add_argument("-mode", "--mode", choices=["moving", "nm", "nmpz"], default=None, help="Game mode filter")
     country_parser.add_argument("--max-games", type=int, default=None, help="Limit to the most recent N games")
     country_parser.set_defaults(func=country_command)
@@ -675,7 +692,12 @@ def main():
     analyse_parser.add_argument("username", type=str, help="Username to analyse")
     analyse_parser.add_argument("-type", "--type", choices=["region", "wrong-country", "win-percentage"], default=None, help="Analysis type")
     analyse_parser.add_argument("-mode", "--mode", choices=["moving", "nm", "nmpz"], default=None, help="Game mode filter")
-    analyse_parser.add_argument("-include", "--include", choices=["ranked", "unranked", "both"], default="both", help="Which games to include")
+    analyse_parser.add_argument(
+        "-include",
+        "--include",
+        default="both",
+        help="Which games to include: ranked | unranked | both | team:<teammate>",
+    )
     analyse_parser.add_argument("--max-games", type=int, default=None, help="Limit analysis to the most recent N games")
     analyse_parser.add_argument("--min-rounds", type=int, default=None, help="Only include countries with at least this many rounds")
     analyse_parser.set_defaults(func=analyse_command)
