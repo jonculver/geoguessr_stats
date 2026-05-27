@@ -593,15 +593,20 @@ def web_command(args):
         print("Missing dependency: uvicorn. Run `pip install -r requirements.txt`.")
         sys.exit(1)
 
+    if args.reload:
+        uvicorn.run(
+            "geoguessr.web.app:create_app",
+            host=args.host,
+            port=args.port,
+            reload=True,
+            factory=True,
+        )
+        return
+
     from geoguessr.web.app import create_app
 
     app = create_app()
-    uvicorn.run(
-        app,
-        host=args.host,
-        port=args.port,
-        reload=args.reload,
-    )
+    uvicorn.run(app, host=args.host, port=args.port)
 
 def main():
     # Make piping to tools like `head` behave like typical Unix CLIs.

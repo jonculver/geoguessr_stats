@@ -120,19 +120,28 @@
       <div class="card">
         <h2>Country</h2>
         <form method="post" action="/country">
+          {% set cf = country.form if country else country_form %}
           <label>Username</label>
           <select name="username" required>
             {% for u in usernames %}
-              <option value="{{u}}" {% if country and country.form.username==u %}selected{% endif %}>{{u}}</option>
+              <option value="{{u}}" {% if cf and cf.username==u %}selected{% endif %}>{{u}}</option>
             {% endfor %}
           </select>
 
-          <label>Country code (2 letters)</label>
-          <input name="country" maxlength="2" value="{{ country.form.country if country else '' }}" required />
+          <label>Country</label>
+          {% if country_options and country_options|length > 0 %}
+            <select name="country" required>
+              {% for opt in country_options %}
+                <option value="{{opt.cc}}" {% if cf and (cf.country|upper)==opt.cc %}selected{% endif %}>{{opt.cc}} — {{opt.name}}</option>
+              {% endfor %}
+            </select>
+          {% else %}
+            <input name="country" maxlength="2" value="{{ cf.country if cf else '' }}" required />
+          {% endif %}
 
           <label>Include</label>
           <select name="include">
-            {% set inc2 = country.form.include if country else "both" %}
+            {% set inc2 = cf.include if cf else "both" %}
             <option value="both" {% if inc2=="both" %}selected{% endif %}>both</option>
             <option value="ranked" {% if inc2=="ranked" %}selected{% endif %}>ranked</option>
             <option value="unranked" {% if inc2=="unranked" %}selected{% endif %}>unranked</option>
@@ -140,7 +149,7 @@
 
           <label>Mode</label>
           <select name="mode">
-            {% set m2 = country.form.mode if country else "" %}
+            {% set m2 = cf.mode if cf else "" %}
             <option value="" {% if not m2 %}selected{% endif %}>all</option>
             <option value="moving" {% if m2=="moving" %}selected{% endif %}>moving</option>
             <option value="nm" {% if m2=="nm" %}selected{% endif %}>nm</option>
@@ -148,7 +157,7 @@
           </select>
 
           <label>Max games (optional)</label>
-          <input type="number" name="max_games" min="1" value="{{ country.form.max_games if country and country.form.max_games is not none else '' }}" />
+          <input type="number" name="max_games" min="1" value="{{ cf.max_games if cf and cf.max_games is not none else '' }}" />
 
           <button type="submit">Run country</button>
         </form>

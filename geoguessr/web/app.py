@@ -117,6 +117,35 @@ def _parse_country(stdout_text: str) -> list[dict[str, Any]]:
     return out
 
 
+def _country_options_for_user(
+    username: str,
+    include: Literal["ranked", "unranked", "both"],
+    mode: Optional[Literal["moving", "nm", "nmpz"]],
+    max_games: Optional[int],
+) -> list[dict[str, str]]:
+    class Args:
+        pass
+
+    args = Args()
+    args.username = username
+    args.type = None
+    args.mode = mode
+    args.include = include
+    args.max_games = max_games
+    args.min_rounds = 1
+
+    stdout, _stderr = _run_command_capture(analyse_command, args)
+    rows = _parse_analyse(stdout, None)
+    out: list[dict[str, str]] = []
+    for r in rows:
+        cc = (r.get("cc") or "").upper()
+        name = r.get("name") or ""
+        if not cc:
+            continue
+        out.append({"cc": cc, "name": name})
+    return out
+
+
 def create_app() -> FastAPI:
     repo_root = Path(__file__).resolve().parents[2]
     templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
@@ -125,13 +154,39 @@ def create_app() -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request):
+        usernames = _load_usernames(repo_root)
+        default_username = usernames[0] if usernames else ""
+        default_include: Literal["ranked", "unranked", "both"] = "both"
+        default_mode: Optional[Literal["moving", "nm", "nmpz"]] = None
+        default_max_games: Optional[int] = None
+        default_country = ""
+
+        country_options = (
+            _country_options_for_user(
+                default_username,
+                default_include,
+                default_mode,
+                default_max_games,
+            )
+            if default_username
+            else []
+        )
+
         return templates.TemplateResponse(
             "index.html",
             {
                 "request": request,
-                "usernames": _load_usernames(repo_root),
+                "usernames": usernames,
                 "analyse": None,
                 "country": None,
+                "country_form": {
+                    "username": default_username,
+                    "country": default_country,
+                    "mode": default_mode,
+                    "include": default_include,
+                    "max_games": default_max_games,
+                },
+                "country_options": country_options,
             },
         )
 
@@ -177,6 +232,16 @@ def create_app() -> FastAPI:
                     "rows": rows,
                 },
                 "country": None,
+                "country_form": {
+                    "username": username,
+                    "country": "",
+                    "mode": None,
+                    "include": "both",
+                    "max_games": None,
+                },
+                "country_options": (
+                    _country_options_for_user(username, "both", None, None) if username else []
+                ),
             },
         )
 
@@ -202,6 +267,8 @@ def create_app() -> FastAPI:
         stdout, stderr = _run_command_capture(country_command, args)
         rows = _parse_country(stdout)
 
+        country_options = _country_options_for_user(username, include, mode, max_games) if username else []
+
         return templates.TemplateResponse(
             "index.html",
             {
@@ -219,6 +286,14 @@ def create_app() -> FastAPI:
                     "stderr": stderr.strip(),
                     "rows": rows,
                 },
+                "country_form": {
+                    "username": username,
+                    "country": country,
+                    "mode": mode,
+                    "include": include,
+                    "max_games": max_games,
+                },
+                "country_options": country_options,
             },
         )
 
