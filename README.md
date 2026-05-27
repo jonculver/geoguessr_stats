@@ -129,7 +129,7 @@ Output format (per round):
 - Google Street View URL (if available)
 
 Notes:
-- `net` is `damage_taken - damage_dealt` for that round.
+- `net` is multiplier-normalized: `(damage_taken / opponent_multiplier) - (damage_dealt / team_multiplier)`.
 - `correct=Y/N` is based on `guess_locations[<your playerId>].country_code` if present; otherwise `correct=?`.
 - Rounds are printed in chronological order (earliest → latest).
 
@@ -156,6 +156,10 @@ Options:
 If `--type` is omitted, the command lists countries sorted by **average net damage per round**, where:
 
 $$\text{net} = \text{damage\_taken} - \text{damage\_dealt}$$
+
+In duels, damage can be affected by multipliers ("multis"). The `analyse` command normalizes net damage by these multipliers:
+
+$$\text{net} = \frac{\text{damage\_taken}}{\text{opponent\_multiplier}} - \frac{\text{damage\_dealt}}{\text{team\_multiplier}}$$
 
 **Examples:**
 ```bash

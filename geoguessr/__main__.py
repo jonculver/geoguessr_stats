@@ -206,6 +206,20 @@ def country_command(args):
         except Exception:
             return float("-inf")
 
+    def multiplier_safe(value: object) -> float:
+        try:
+            f = float(value)  # type: ignore[arg-type]
+        except Exception:
+            return 1.0
+        return f if f > 0 else 1.0
+
+    def net_damage_normalized(duel_round) -> float:
+        taken = float(getattr(duel_round, "damage_taken", 0) or 0)
+        dealt = float(getattr(duel_round, "damage_dealt", 0) or 0)
+        opp_multi = multiplier_safe(getattr(duel_round, "opponent_multiplier", 1.0))
+        team_multi = multiplier_safe(getattr(duel_round, "team_multiplier", 1.0))
+        return (taken / opp_multi) - (dealt / team_multi)
+
     def game_ts(game) -> float:
         ts = getattr(game, "start_time", "") or getattr(game, "time", "") or ""
         parsed = parse_ts(ts)
@@ -226,7 +240,7 @@ def country_command(args):
             if actual_cc != target_cc:
                 continue
 
-            net_damage = (getattr(duel_round, "damage_taken", 0) or 0) - (getattr(duel_round, "damage_dealt", 0) or 0)
+            net_damage = net_damage_normalized(duel_round)
             if net_damage <= 0:
                 continue
             pano_id = getattr(duel_round, "pano_id", "") or ""
@@ -245,7 +259,8 @@ def country_command(args):
             date = start_time.split("T", 1)[0] if start_time else ""
             game_id = getattr(game, 'game_id', '')
             game_url = f"https://www.geoguessr.com/duels/{game_id}" if game_id else ""
-            line = f"  {date} net={net_damage} round={i} correct={correct}\n    {game_url}\n    {sv_url}\n"
+            net_display = int(round(net_damage))
+            line = f"  {date} net={net_display} round={i} correct={correct}\n    {game_url}\n    {sv_url}\n"
             rows.append((parse_ts(start_time), line))
 
     rows.sort(key=lambda r: r[0])
@@ -271,6 +286,24 @@ def _parse_analyse_mode(mode: Optional[str]) -> Optional[GameMode]:
 
 def analyse_command(args):
     """Analyse player data."""
+
+    def _multiplier_safe(value: object) -> float:
+        try:
+            f = float(value)  # type: ignore[arg-type]
+        except Exception:
+            return 1.0
+        return f if f > 0 else 1.0
+
+    def _net_damage_normalized(duel_round) -> float:
+        """Net damage adjusted for multipliers.
+
+        taken is divided by opponent multiplier; dealt is divided by team multiplier.
+        """
+        taken = float(getattr(duel_round, "damage_taken", 0) or 0)
+        dealt = float(getattr(duel_round, "damage_dealt", 0) or 0)
+        opp_multi = _multiplier_safe(getattr(duel_round, "opponent_multiplier", 1.0))
+        team_multi = _multiplier_safe(getattr(duel_round, "team_multiplier", 1.0))
+        return (taken / opp_multi) - (dealt / team_multi)
 
     def _parse_game_timestamp(game) -> float:
         """Return a sortable timestamp (seconds since epoch) for a duel game."""
@@ -360,14 +393,14 @@ def analyse_command(args):
 
     if analysis_type is None:
         def avg_net_damage(s: CountryStats) -> float:
-            """Average (damage_taken - damage_dealt) per round."""
-            if not s.total_rounds:
+            rounds = rounds_by_country.get(s.country_code, [])
+            if not rounds:
                 return 0.0
-            return (s.total_damage_taken - s.total_damage_dealt) / s.total_rounds
+            return sum(_net_damage_normalized(r) for r in rounds) / len(rounds)
 
         stats.sort(key=avg_net_damage, reverse=True)
 
-        print(f"Country net damage (avg taken - dealt) for {args.username}")
+        print(f"Country net damage (avg taken/opponent_multi - dealt/team_multi) for {args.username}")
         print(f"  Include: {include}")
         print(f"  Mode: {mode.value if mode else 'All'}")
         print(f"  Games: {len(duel_games)}")
@@ -432,9 +465,10 @@ def analyse_command(args):
 
     # --type region
     def avg_net_damage(s: CountryStats) -> float:
-        if not s.total_rounds:
+        rounds = rounds_by_country.get(s.country_code, [])
+        if not rounds:
             return 0.0
-        return (s.total_damage_taken - s.total_damage_dealt) / s.total_rounds
+        return sum(_net_damage_normalized(r) for r in rounds) / len(rounds)
 
     stats.sort(key=avg_net_damage, reverse=True)
 
