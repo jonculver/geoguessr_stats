@@ -51,11 +51,11 @@
             {% endfor %}
           </select>
 
-          <label>Type</label>
+          <label>Analysis Type</label>
           <select name="analysis_type">
-            <option value="" {% if not (analyse and analyse.form.type) %}selected{% endif %}>default</option>
-            <option value="region" {% if analyse and analyse.form.type=="region" %}selected{% endif %}>region</option>
-            <option value="wrong-country" {% if analyse and analyse.form.type=="wrong-country" %}selected{% endif %}>wrong-country</option>
+            <option value="" {% if not (analyse and analyse.form.type) %}selected{% endif %}>Damage Analysis</option>
+            <option value="region" {% if analyse and analyse.form.type=="region" %}selected{% endif %}>Regionguessing Analysis</option>
+            <option value="wrong-country" {% if analyse and analyse.form.type=="wrong-country" %}selected{% endif %}>Country Accuracy Analysis</option>
           </select>
 
           <label>Include</label>
