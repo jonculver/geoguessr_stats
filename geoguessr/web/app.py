@@ -210,6 +210,10 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="GeoGuessr Stats")
 
+    @app.get("/team-duel-partners")
+    def team_duel_partners(username: str):
+        return {"partners": _team_duel_teammates_for_user(repo_root, username)}
+
     @app.get("/available-games")
     def available_games(
         username: str,

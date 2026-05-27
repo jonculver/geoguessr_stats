@@ -308,6 +308,73 @@
 
     <script>
       (function () {
+        function rebuildIncludeOptions(selectEl, partners, selectedValue) {
+          if (!selectEl) return;
+
+          // Preserve the first 3 base options (both/ranked/unranked) if they exist.
+          var base = Array.prototype.slice.call(selectEl.querySelectorAll('option')).filter(function (o) {
+            return o.value === 'both' || o.value === 'ranked' || o.value === 'unranked';
+          });
+
+          // Clear all options.
+          selectEl.innerHTML = '';
+          base.forEach(function (opt) { selectEl.appendChild(opt); });
+
+          if (Array.isArray(partners) && partners.length) {
+            partners.forEach(function (t) {
+              var v = 'team:' + t;
+              var opt = document.createElement('option');
+              opt.value = v;
+              opt.textContent = 'Ranked Team Duels (with ' + t + ')';
+              selectEl.appendChild(opt);
+            });
+          }
+
+          // Restore selection if possible.
+          var values = Array.prototype.slice.call(selectEl.options).map(function (o) { return o.value; });
+          if (selectedValue && values.indexOf(selectedValue) !== -1) {
+            selectEl.value = selectedValue;
+          } else if (values.indexOf('both') !== -1) {
+            selectEl.value = 'both';
+          }
+        }
+
+        function updateTeamPartners(panelEl) {
+          if (!panelEl) return;
+          var usernameEl = panelEl.querySelector('select[name="username"]');
+          var includeEl = panelEl.querySelector('select[name="include"]');
+          if (!usernameEl || !includeEl) return;
+
+          var username = usernameEl.value || '';
+          var selected = includeEl.value;
+          if (!username) {
+            rebuildIncludeOptions(includeEl, [], selected);
+            return;
+          }
+
+          fetch('/team-duel-partners?username=' + encodeURIComponent(username), { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+              var partners = (data && Array.isArray(data.partners)) ? data.partners : [];
+              rebuildIncludeOptions(includeEl, partners, selected);
+            })
+            .catch(function () {
+              rebuildIncludeOptions(includeEl, [], selected);
+            });
+        }
+
+        function wireTeamPartners(panelId) {
+          var panel = document.getElementById(panelId);
+          if (!panel) return;
+          var usernameEl = panel.querySelector('select[name="username"]');
+          if (!usernameEl) return;
+
+          usernameEl.addEventListener('change', function () {
+            updateTeamPartners(panel);
+          });
+          updateTeamPartners(panel);
+        }
+
         function updateAvailableGames(panelEl, outputEl) {
           if (!panelEl || !outputEl) return;
 
@@ -419,6 +486,8 @@
 
         makeTableSortable(document.querySelector('table[data-sortable="region"]'));
 
+        wireTeamPartners('tab-panel-analyse');
+        wireTeamPartners('tab-panel-country');
         wireAvailableGames('tab-panel-analyse', 'analyse-available-games');
         wireAvailableGames('tab-panel-country', 'country-available-games');
       })();
