@@ -133,6 +133,7 @@ Output format (per round):
 Notes:
 - `net` is multiplier-normalized: `(damage_taken / opponent_multiplier) - (damage_dealt / team_multiplier)`.
 - `correct=Y/N` is based on `guess_locations[<your playerId>].country_code` if present; otherwise `correct=?`.
+- Rounds with fewer than 2 `guess_locations` entries are excluded.
 - Rounds are printed ordered by `net` (lowest → highest).
 
 **Example:**
@@ -176,6 +177,8 @@ python -m geoguessr analyse Juliette --type wrong-country --max-games 200
 ```
 
 Note: You need to run `fetch` first to populate the `output/` JSON files.
+
+Note: `analyse` excludes rounds where `guess_locations` has fewer than 2 players.
 
 ### Web UI
 

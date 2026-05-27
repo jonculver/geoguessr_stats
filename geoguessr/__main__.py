@@ -259,10 +259,16 @@ def country_command(args):
             file=sys.stderr,
         )
 
+    def has_two_guess_locations(duel_round) -> bool:
+        guess_locations = getattr(duel_round, "guess_locations", None) or {}
+        return isinstance(guess_locations, dict) and len(guess_locations) >= 2
+
     rows: list[tuple[float, float, str]] = []
     for game in duel_games:
         player_id = getattr(game, "player_id", "") or ""
         for i, duel_round in enumerate(getattr(game, "rounds", []) or [], start=1):
+            if not has_two_guess_locations(duel_round):
+                continue
             actual_cc = (getattr(duel_round, "country_code", "") or "").upper() or "??"
             if actual_cc != target_cc:
                 continue
@@ -407,6 +413,10 @@ def analyse_command(args):
             file=sys.stderr,
         )
 
+    def has_two_guess_locations(duel_round) -> bool:
+        guess_locations = getattr(duel_round, "guess_locations", None) or {}
+        return isinstance(guess_locations, dict) and len(guess_locations) >= 2
+
     def _round_both_players_correct_country(duel_round) -> bool:
         """True iff both players guessed the panorama country for this round."""
         correct_cc = (getattr(duel_round, "country_code", "") or "").upper()
@@ -431,6 +441,8 @@ def analyse_command(args):
     rounds_by_country: dict[str, list] = {}
     for game in duel_games:
         for duel_round in game.rounds:
+            if not has_two_guess_locations(duel_round):
+                continue
             cc = (duel_round.country_code or "").upper() or "??"
             if analysis_type == "region" and not _round_both_players_correct_country(duel_round):
                 continue
@@ -475,6 +487,8 @@ def analyse_command(args):
         for game in duel_games:
             player_id = getattr(game, "player_id", "") or ""
             for duel_round in game.rounds:
+                if not has_two_guess_locations(duel_round):
+                    continue
                 actual_cc = (getattr(duel_round, "country_code", "") or "").upper() or "??"
                 if actual_cc == "??":
                     continue
