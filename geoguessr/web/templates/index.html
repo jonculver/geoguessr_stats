@@ -58,12 +58,12 @@
             <option value="wrong-country" {% if analyse and analyse.form.type=="wrong-country" %}selected{% endif %}>Country Accuracy Analysis</option>
           </select>
 
-          <label>Include</label>
+          <label>Type of Duels</label>
           <select name="include">
             {% set inc = analyse.form.include if analyse else "both" %}
-            <option value="both" {% if inc=="both" %}selected{% endif %}>both</option>
-            <option value="ranked" {% if inc=="ranked" %}selected{% endif %}>ranked</option>
-            <option value="unranked" {% if inc=="unranked" %}selected{% endif %}>unranked</option>
+            <option value="both" {% if inc=="both" %}selected{% endif %}>Ranked and Unranked Solo</option>
+            <option value="ranked" {% if inc=="ranked" %}selected{% endif %}>Ranked Solo</option>
+            <option value="unranked" {% if inc=="unranked" %}selected{% endif %}>Unranked Solo</option>
           </select>
 
           <label>Mode</label>
