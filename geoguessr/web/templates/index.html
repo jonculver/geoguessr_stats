@@ -77,8 +77,9 @@
             <option value="nmpz" {% if m=="nmpz" %}selected{% endif %}>nmpz</option>
           </select>
 
-          <label>Max games (optional)</label>
+          <label>Number of games to analyse (optional)</label>
           <input type="number" name="max_games" min="1" value="{{ analyse.form.max_games if analyse and analyse.form.max_games is not none else '' }}" />
+          <div class="help">This number of the most recent games will be analysed</div>
 
           <label>Minimum Rounds (optional)</label>
           <input type="number" name="min_rounds" min="0" value="{{ analyse.form.min_rounds if analyse and analyse.form.min_rounds is not none else '' }}" />
