@@ -236,7 +236,7 @@
           <table>
             <thead>
               <tr>
-                <th>#</th><th>Date</th><th>Net</th><th>Round</th><th>Correct</th><th>Duel</th><th>Street View</th>
+                <th>#</th><th>Date</th><th>Damage Taken</th><th>Round</th><th>Correct</th><th>Duel</th><th>Street View</th>
               </tr>
             </thead>
             <tbody>
@@ -247,7 +247,7 @@
                   <td class="mono">{{r.net}}</td>
                   <td class="mono">{{r.round}}</td>
                   <td class="mono">{{r.correct}}</td>
-                  <td>{% if r.duel_url %}<a href="{{r.duel_url}}" target="_blank">link</a>{% endif %}</td>
+                  <td>{% if r.duel_url %}<a href="{{r.duel_url}}" target="_blank">link (round {{r.round}})</a>{% endif %}</td>
                   <td>{% if r.sv_url %}<a href="{{r.sv_url}}" target="_blank">link</a>{% endif %}</td>
                 </tr>
               {% endfor %}
