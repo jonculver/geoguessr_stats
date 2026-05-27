@@ -324,8 +324,8 @@ def country_command(args):
             line = f"  {date} duel={duel_type} mode={mode_display} net={net_display} round={i} correct={correct}\n    {game_url}\n    {sv_url}\n"
             rows.append((net_damage, parse_ts(start_time), line))
 
-    # Sort by net damage (lowest first), then by time for stability.
-    rows.sort(key=lambda r: (r[0], r[1]))
+    # Sort by net damage (highest first), then by time for stability.
+    rows.sort(key=lambda r: (-r[0], r[1]))
 
     print(f"Duel rounds in {target_cc} for {username}")
     print(f"  Rounds: {len(rows)}")
