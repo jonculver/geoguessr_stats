@@ -71,10 +71,10 @@
           <label>Mode</label>
           <select name="mode">
             {% set m = analyse.form.mode if analyse else "" %}
-            <option value="" {% if not m %}selected{% endif %}>all</option>
-            <option value="moving" {% if m=="moving" %}selected{% endif %}>moving</option>
-            <option value="nm" {% if m=="nm" %}selected{% endif %}>nm</option>
-            <option value="nmpz" {% if m=="nmpz" %}selected{% endif %}>nmpz</option>
+            <option value="" {% if not m %}selected{% endif %}>All</option>
+            <option value="moving" {% if m=="moving" %}selected{% endif %}>Moving</option>
+            <option value="nm" {% if m=="nm" %}selected{% endif %}>NM</option>
+            <option value="nmpz" {% if m=="nmpz" %}selected{% endif %}>NMPZ</option>
           </select>
 
           <label>Number of games to analyse (optional)</label>
@@ -170,10 +170,10 @@
           <label>Mode</label>
           <select name="mode">
             {% set m2 = cf.mode if cf else "" %}
-            <option value="" {% if not m2 %}selected{% endif %}>all</option>
-            <option value="moving" {% if m2=="moving" %}selected{% endif %}>moving</option>
-            <option value="nm" {% if m2=="nm" %}selected{% endif %}>nm</option>
-            <option value="nmpz" {% if m2=="nmpz" %}selected{% endif %}>nmpz</option>
+            <option value="" {% if not m2 %}selected{% endif %}>All</option>
+            <option value="moving" {% if m2=="moving" %}selected{% endif %}>Moving</option>
+            <option value="nm" {% if m2=="nm" %}selected{% endif %}>NM</option>
+            <option value="nmpz" {% if m2=="nmpz" %}selected{% endif %}>NMPZ</option>
           </select>
 
           <label>Max games (optional)</label>
