@@ -12,6 +12,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from geoguessr.__main__ import analyse_command, country_command
+from geoguessr.game import GameMode
+from geoguessr.user import PlayerData
 
 
 def _load_usernames(repo_root: Path) -> list[str]:
@@ -47,6 +49,43 @@ def _team_duel_teammates_for_user(repo_root: Path, username: str) -> list[str]:
         if teammate:
             teammates.add(teammate)
     return sorted(teammates, key=lambda s: s.lower())
+
+
+def _parse_mode(mode: Optional[str]) -> Optional[GameMode]:
+    if not mode:
+        return None
+    mode_norm = mode.strip().lower()
+    if mode_norm == "moving":
+        return GameMode.MOVING
+    if mode_norm in {"nm", "no_move", "nomove"}:
+        return GameMode.NO_MOVE
+    if mode_norm == "nmpz":
+        return GameMode.NMPZ
+    return None
+
+
+def _available_games_count(username: str, include: str, mode: Optional[str]) -> int:
+    if not username:
+        return 0
+    player_data = PlayerData(username)
+
+    if isinstance(include, str) and include.startswith("team:"):
+        teammate = include.split(":", 1)[1].strip()
+        team_map = getattr(player_data, "ranked_team_duel_games", {}) or {}
+        games = list(team_map.get(teammate, []))
+    elif include == "ranked":
+        games = list(getattr(player_data, "ranked_duel_games", []) or [])
+    elif include == "unranked":
+        games = list(getattr(player_data, "unranked_duel_games", []) or [])
+    else:
+        games = list(getattr(player_data, "ranked_duel_games", []) or []) + list(
+            getattr(player_data, "unranked_duel_games", []) or []
+        )
+
+    gm = _parse_mode(mode)
+    if gm is not None:
+        games = [g for g in games if getattr(g, "mode", None) == gm]
+    return len(games)
 
 
 _ANALYSE_ROW_RE = re.compile(
@@ -171,6 +210,14 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="GeoGuessr Stats")
 
+    @app.get("/available-games")
+    def available_games(
+        username: str,
+        include: str = "both",
+        mode: Optional[Literal["moving", "nm", "nmpz"]] = None,
+    ):
+        return {"count": _available_games_count(username, include, mode)}
+
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request):
         usernames = _load_usernames(repo_root)
@@ -191,6 +238,13 @@ def create_app() -> FastAPI:
             else []
         )
 
+        analyse_available_games = (
+            _available_games_count(default_username, default_include, default_mode)
+            if default_username
+            else 0
+        )
+        country_available_games = analyse_available_games
+
         return templates.TemplateResponse(
             "index.html",
             {
@@ -203,6 +257,7 @@ def create_app() -> FastAPI:
                 if default_username
                 else [],
                 "analyse": None,
+                "analyse_available_games": analyse_available_games,
                 "country": None,
                 "country_form": {
                     "username": default_username,
@@ -211,6 +266,7 @@ def create_app() -> FastAPI:
                     "include": default_include,
                     "max_games": default_max_games,
                 },
+                "country_available_games": country_available_games,
                 "country_options": country_options,
             },
         )
@@ -239,6 +295,9 @@ def create_app() -> FastAPI:
         stdout, stderr = _run_command_capture(analyse_command, args)
         rows = _parse_analyse(stdout, analysis_type)
 
+        analyse_available_games = _available_games_count(username, include, mode)
+        country_available_games = _available_games_count(username, "both", None)
+
         return templates.TemplateResponse(
             "index.html",
             {
@@ -258,6 +317,7 @@ def create_app() -> FastAPI:
                     "stderr": stderr.strip(),
                     "rows": rows,
                 },
+                "analyse_available_games": analyse_available_games,
                 "country": None,
                 "country_form": {
                     "username": username,
@@ -266,6 +326,7 @@ def create_app() -> FastAPI:
                     "include": "both",
                     "max_games": None,
                 },
+                "country_available_games": country_available_games,
                 "country_options": (
                     _country_options_for_user(username, "both", None, None) if username else []
                 ),
@@ -296,6 +357,9 @@ def create_app() -> FastAPI:
 
         country_options = _country_options_for_user(username, include, mode, max_games) if username else []
 
+        analyse_available_games = _available_games_count(username, "both", None)
+        country_available_games = _available_games_count(username, include, mode)
+
         return templates.TemplateResponse(
             "index.html",
             {
@@ -304,6 +368,7 @@ def create_app() -> FastAPI:
                 "analyse_teammates": _team_duel_teammates_for_user(repo_root, username) if username else [],
                 "country_teammates": _team_duel_teammates_for_user(repo_root, username) if username else [],
                 "analyse": None,
+                "analyse_available_games": analyse_available_games,
                 "country": {
                     "form": {
                         "username": username,
@@ -322,6 +387,7 @@ def create_app() -> FastAPI:
                     "include": include,
                     "max_games": max_games,
                 },
+                "country_available_games": country_available_games,
                 "country_options": country_options,
             },
         )
@@ -350,6 +416,9 @@ def create_app() -> FastAPI:
 
         country_options = _country_options_for_user(username, include, mode, max_games) if username else []
 
+        analyse_available_games = _available_games_count(username, "both", None)
+        country_available_games = _available_games_count(username, include, mode)
+
         return templates.TemplateResponse(
             "index.html",
             {
@@ -358,6 +427,7 @@ def create_app() -> FastAPI:
                 "analyse_teammates": _team_duel_teammates_for_user(repo_root, username) if username else [],
                 "country_teammates": _team_duel_teammates_for_user(repo_root, username) if username else [],
                 "analyse": None,
+                "analyse_available_games": analyse_available_games,
                 "country": {
                     "form": {
                         "username": username,
@@ -376,6 +446,7 @@ def create_app() -> FastAPI:
                     "include": include,
                     "max_games": max_games,
                 },
+                "country_available_games": country_available_games,
                 "country_options": country_options,
             },
         )

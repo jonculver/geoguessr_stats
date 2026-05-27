@@ -87,6 +87,7 @@
           <label>Number of games to analyse (optional)</label>
           <input type="number" name="max_games" min="1" value="{{ analyse.form.max_games if analyse and analyse.form.max_games is not none else '' }}" />
           <div class="help">This number of the most recent games will be analysed.</div>
+          <div class="help">Available games for current filters: <span class="mono" id="analyse-available-games">{{ analyse_available_games if analyse_available_games is not none else 0 }}</span></div>
 
           <label>Minimum Rounds (optional)</label>
           <input type="number" name="min_rounds" min="0" value="{{ analyse.form.min_rounds if analyse and analyse.form.min_rounds is not none else '' }}" />
@@ -250,6 +251,7 @@
           <label>Number of games to analyse (optional)</label>
           <input type="number" name="max_games" min="1" value="{{ cf.max_games if cf and cf.max_games is not none else '' }}" />
           <div class="help">This number of the most recent games will be analysed.</div>
+          <div class="help">Available games for current filters: <span class="mono" id="country-available-games">{{ country_available_games if country_available_games is not none else 0 }}</span></div>
 
           <button type="submit">Show Rounds</button>
           </form>
@@ -306,6 +308,50 @@
 
     <script>
       (function () {
+        function updateAvailableGames(panelEl, outputEl) {
+          if (!panelEl || !outputEl) return;
+
+          var usernameEl = panelEl.querySelector('select[name="username"]');
+          var includeEl = panelEl.querySelector('select[name="include"]');
+          var modeEl = panelEl.querySelector('select[name="mode"]');
+
+          var username = usernameEl ? usernameEl.value : '';
+          var include = includeEl ? includeEl.value : 'both';
+          var mode = modeEl ? modeEl.value : '';
+
+          if (!username) {
+            outputEl.textContent = '0';
+            return;
+          }
+
+          var url = '/available-games?username=' + encodeURIComponent(username) + '&include=' + encodeURIComponent(include);
+          if (mode) url += '&mode=' + encodeURIComponent(mode);
+
+          outputEl.textContent = '…';
+          fetch(url, { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+              if (!data || typeof data.count !== 'number') {
+                outputEl.textContent = '0';
+                return;
+              }
+              outputEl.textContent = String(data.count);
+            })
+            .catch(function () { outputEl.textContent = '0'; });
+        }
+
+        function wireAvailableGames(panelId, outputId) {
+          var panel = document.getElementById(panelId);
+          var out = document.getElementById(outputId);
+          if (!panel || !out) return;
+
+          var els = panel.querySelectorAll('select[name="username"], select[name="include"], select[name="mode"]');
+          els.forEach(function (el) {
+            el.addEventListener('change', function () { updateAvailableGames(panel, out); });
+          });
+          updateAvailableGames(panel, out);
+        }
+
         function makeTableSortable(table) {
           if (!table) return;
 
@@ -372,6 +418,9 @@
         setActive(initial);
 
         makeTableSortable(document.querySelector('table[data-sortable="region"]'));
+
+        wireAvailableGames('tab-panel-analyse', 'analyse-available-games');
+        wireAvailableGames('tab-panel-country', 'country-available-games');
       })();
     </script>
   </body>
