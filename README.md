@@ -95,6 +95,7 @@ python -m geoguessr display Draig -m Moving
 ### Output
 Results are saved in the `output` folder:
 - `<username>_daily_challenge.json`: Daily challenge games
+- `<username>_standard_games.json`: Standard (non-duel) games
 - `<username>_ranked_duels.json`: Solo ranked duel games
 - `<username>_unranked_duels.json`: Unranked (casual) duel games
 - `<username>_<teammate>_ranked_team_duels.json`: Team duel games with each teammate

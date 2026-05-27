@@ -13,6 +13,7 @@ class GameType(str, Enum):
     UNRANKED_DUELS = "UnrankedDuels"
     RANKED_TEAM_DUELS = "TeamDuels"
     DAILY_CHALLENGE = "DailyChallenge"
+    STANDARD = "Standard"
     UNKNOWN = "Unknown"
 
 class GameMode(str, Enum):
@@ -26,6 +27,28 @@ class GeoguessrChallengeGame:
     time: str
     challenge_token: str
     points: int
+
+
+@dataclass()
+class GeoguessrStandardGame:
+    """A non-duel ("Standard") GeoGuessr game.
+
+    These are fetched via https://www.geoguessr.com/api/v3/games/<token>.
+    """
+
+    game_type: GameType
+    time: str
+    game_token: str
+
+    # Convenience fields (duplicated from the game detail payload).
+    map: str = ""
+    map_name: str = ""
+    mode: str = ""
+    state: str = ""
+    round_count: int = 0
+
+    # Keep the full API payload so we can enrich/analyse later without refetching.
+    raw: dict = field(default_factory=dict)
 
 @dataclass()
 class GeoguessrDuelRound:

@@ -6,7 +6,7 @@ from tqdm import tqdm
 from dataclasses import fields
 from typing import Optional
 from geoguessr.user import PlayerData
-from geoguessr.game import GeoguessrDuelGame, GeoguessrChallengeGame, GameType
+from geoguessr.game import GeoguessrChallengeGame, GeoguessrDuelGame, GeoguessrStandardGame, GameType
 
 USERNAME_MAP_FILE = "output/username_map.json"
 
@@ -16,6 +16,7 @@ class Geoguessr:
         username: str,
         ncfa_cookie: str,
         last_challenge_seed: str,
+        last_standard_game_token: str,
         last_ranked_duel_id: str,
         last_unranked_duel_id: str,
         last_team_duel_id: str,
@@ -26,16 +27,19 @@ class Geoguessr:
         self.user_id = self._get_userID()
         self.userids_to_usernames = {}
         self.daily_challenge_games = []
+        self.standard_games = []
         self.ranked_duel_games = []
         self.unranked_duel_games = []
         self.ranked_team_duel_games = {}
 
         print(
             f"Fetching games for user '{self.username}' (ID: {self.user_id}) since last challenge seed '{last_challenge_seed}', "
+            f"last standard game token '{last_standard_game_token}', "
             f"last ranked duel ID '{last_ranked_duel_id}', last unranked duel ID '{last_unranked_duel_id}', "
             f"and last team duel ID '{last_team_duel_id}'..."
         )
         self._get_games(last_challenge_seed=last_challenge_seed,
+                        last_standard_game_token=last_standard_game_token,
                         last_ranked_duel_id=last_ranked_duel_id,
                         last_unranked_duel_id=last_unranked_duel_id,
                         last_team_duel_id=last_team_duel_id,
@@ -77,14 +81,36 @@ class Geoguessr:
         if raw_data is None:
             return None
         return GeoguessrDuelGame.from_geoguessr_data(game_type, game_id, self.user_id, raw_data)
+
+    def _query_standard_game_data(self, entry: dict) -> Optional[GeoguessrStandardGame]:
+        game_token = entry.get("game_token", "")
+        if not game_token:
+            return None
+        url = f"https://www.geoguessr.com/api/v3/games/{game_token}"
+        raw_data = self._make_request(url)
+        if raw_data is None or not isinstance(raw_data, dict):
+            return None
+        return GeoguessrStandardGame(
+            game_type=GameType.STANDARD,
+            time=entry.get("time", ""),
+            game_token=game_token,
+            map=raw_data.get("map", ""),
+            map_name=raw_data.get("mapName", ""),
+            mode=raw_data.get("mode", ""),
+            state=raw_data.get("state", ""),
+            round_count=raw_data.get("roundCount", 0) or 0,
+            raw=raw_data,
+        )
     
     def _get_game_type(self, payload: dict) -> GameType:
         if "isDailyChallenge" in payload:
             return GameType.DAILY_CHALLENGE
+        game_mode = payload.get('gameMode', "")
+        if game_mode == "Standard":
+            return GameType.STANDARD
         game_id = payload.get('gameId')
         if not game_id:
             return GameType.UNKNOWN       
-        game_mode = payload.get('gameMode', "")
         competitive_modes = ["StandardDuels", "NoMoveDuels", "NmpzDuels"]
         competitive_mode = payload.get('competitiveGameMode', "")
         if game_mode == "Duels":
@@ -105,6 +131,18 @@ class Geoguessr:
             points = game_data.get('points', 0)
             game = GeoguessrChallengeGame(game_type, time, challenge_token, points)
             games_dict[GameType.DAILY_CHALLENGE].append(game)
+        elif game_type == GameType.STANDARD:
+            game_token = game_data.get("gameToken", "")
+            if game_token:
+                games_dict[GameType.STANDARD].append(
+                    {
+                        "game_token": game_token,
+                        "time": time,
+                        "map_slug": game_data.get("mapSlug", ""),
+                        "map_name": game_data.get("mapName", game_data.get("mapname", "")),
+                        "points": game_data.get("points", 0),
+                    }
+                )
         elif game_type != GameType.UNKNOWN:
             game_id = game_data.get('gameId', "")
             games_dict[game_type].append(game_id)
@@ -117,6 +155,7 @@ class Geoguessr:
         raw_data = self._make_request(url)
         games = {
             GameType.DAILY_CHALLENGE: [],
+            GameType.STANDARD: [],
             GameType.RANKED_DUELS: [],
             GameType.UNRANKED_DUELS: [],
             GameType.RANKED_TEAM_DUELS: [],
@@ -192,12 +231,13 @@ class Geoguessr:
         safe_username = "".join(c for c in safe_username if c.isalnum() or c == "_")
         return safe_username
 
-    def _get_games(self, last_challenge_seed, last_ranked_duel_id, last_unranked_duel_id, last_team_duel_id, max_games=1000):
+    def _get_games(self, last_challenge_seed, last_standard_game_token, last_ranked_duel_id, last_unranked_duel_id, last_team_duel_id, max_games=1000):
         """
         Return a dictionary containing a list of games for each game type since the last seen IDs
         """
         games = {
             GameType.DAILY_CHALLENGE: [],
+            GameType.STANDARD: [],
             GameType.RANKED_DUELS: [],
             GameType.UNRANKED_DUELS: [],
             GameType.RANKED_TEAM_DUELS: [],
@@ -205,6 +245,7 @@ class Geoguessr:
         # Track which game types have found their last game
         complete_types = {
             GameType.DAILY_CHALLENGE: False,
+            GameType.STANDARD: False,
             GameType.RANKED_DUELS: False,
             GameType.UNRANKED_DUELS: False,
             GameType.RANKED_TEAM_DUELS: False,
@@ -224,6 +265,10 @@ class Geoguessr:
                     # Check if this is the last game we already have
                     if game_type == GameType.DAILY_CHALLENGE:
                         if game.challenge_token == last_challenge_seed:
+                            complete_types[game_type] = True
+                            break
+                    elif game_type == GameType.STANDARD:
+                        if (game.get("game_token", "") if isinstance(game, dict) else "") == last_standard_game_token:
                             complete_types[game_type] = True
                             break
                     elif game_type == GameType.RANKED_DUELS:
@@ -254,11 +299,24 @@ class Geoguessr:
         
         print(
             f"Found {len(games[GameType.DAILY_CHALLENGE])} new daily challenge games, "
+            f"{len(games[GameType.STANDARD])} new standard games, "
             f"{len(games[GameType.RANKED_DUELS])} new ranked duel games, "
             f"{len(games[GameType.UNRANKED_DUELS])} new unranked duel games, "
             f"and {len(games[GameType.RANKED_TEAM_DUELS])} new ranked team duel games. "
         )
         self.daily_challenge_games = games[GameType.DAILY_CHALLENGE]
+
+        # Query standard game details.
+        self.standard_games = []
+        standard_entries = games[GameType.STANDARD]
+        queried_standard = []
+        for entry in tqdm(standard_entries, desc="Querying Standard game data"):
+            if not isinstance(entry, dict):
+                continue
+            game_data = self._query_standard_game_data(entry)
+            if game_data is not None:
+                queried_standard.append(game_data)
+        self.standard_games = queried_standard
 
         # Query duel game details (ranked, unranked, and team duels).
         self.ranked_duel_games = []

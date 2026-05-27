@@ -6,7 +6,14 @@ import argparse
 from dataclasses import dataclass
 from typing import Optional
 
-from geoguessr.game import GeoguessrDuelGame, GeoguessrChallengeGame, GameType, GeoguessrDuelRound, GameMode
+from geoguessr.game import (
+    GeoguessrChallengeGame,
+    GeoguessrDuelGame,
+    GeoguessrDuelRound,
+    GeoguessrStandardGame,
+    GameMode,
+    GameType,
+)
 from geoguessr.countries import CountryStats, country_code_to_name, name_to_country_code
 
 @dataclass
@@ -82,11 +89,13 @@ class PlayerData:
     def __init__(self, username: str):
         self.username = username
         self.daily_challenge_games: list[GeoguessrChallengeGame] = []
+        self.standard_games: list[GeoguessrStandardGame] = []
         self.ranked_duel_games: list[GeoguessrDuelGame] = []
         self.unranked_duel_games: list[GeoguessrDuelGame] = []
         self.ranked_team_duel_games: dict[str, list[GeoguessrDuelGame]] = {}
 
         self._get_daily_challenge_games()
+        self._get_standard_games()
         self._get_ranked_duel_games()
         self._get_unranked_duel_games()
         self._get_ranked_team_duel_games()
@@ -95,6 +104,7 @@ class PlayerData:
         return "  \n".join([
             f"PlayerData for {self.username}:",
             f"  Daily Challenge Games: {len(self.daily_challenge_games)}",
+            f"  Standard Games: {len(self.standard_games)}",
             f"  Ranked Duel Games: {len(self.ranked_duel_games)}",
             f"  Unranked Duel Games: {len(self.unranked_duel_games)}",
             f"  Ranked Team Duel Games: {', '.join([f'{teammate}: {len(games)}' for teammate, games in self.ranked_team_duel_games.items()])}"
@@ -117,6 +127,28 @@ class PlayerData:
                 points=item.get('points', 0)
             )
             self.daily_challenge_games.append(game)
+
+    def _get_standard_games(self):
+        """Read data from output/USERNAME_standard_games.json and populate standard_games."""
+        filepath = f"output/{self.username}_standard_games.json"
+        if not os.path.exists(filepath):
+            return
+        with open(filepath, "r", encoding="utf-8") as f:
+            raw_data = json.load(f)
+        for item in raw_data:
+            self.standard_games.append(
+                GeoguessrStandardGame(
+                    game_type=item.get("game_type", GameType.STANDARD),
+                    time=item.get("time", ""),
+                    game_token=item.get("game_token", ""),
+                    map=item.get("map", ""),
+                    map_name=item.get("map_name", ""),
+                    mode=item.get("mode", ""),
+                    state=item.get("state", ""),
+                    round_count=item.get("round_count", 0),
+                    raw=item.get("raw", {}) if isinstance(item.get("raw", {}), dict) else {},
+                )
+            )
 
     def _get_ranked_duel_games(self):
         """
@@ -166,6 +198,12 @@ class PlayerData:
             return ""
         # Assuming games are in chronological order, return the latest
         return self.daily_challenge_games[0].challenge_token
+
+    def last_standard_game_token(self) -> str:
+        """Return the token of the most recent standard game, or empty string if none."""
+        if not self.standard_games:
+            return ""
+        return self.standard_games[0].game_token
     
     def last_ranked_duel_id(self) -> str:
         """

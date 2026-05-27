@@ -42,6 +42,7 @@ def fetch_command(args):
         username,
         token,
         user_data.last_challenge_seed(),
+        user_data.last_standard_game_token(),
         user_data.last_ranked_duel_id(),
         user_data.last_unranked_duel_id(),
         user_data.last_team_duel_id(),
@@ -50,6 +51,7 @@ def fetch_command(args):
 
     # Append player data to geo data to keep reverse chronological order
     daily_challenge_games = geo.daily_challenge_games + user_data.daily_challenge_games
+    standard_games = geo.standard_games + getattr(user_data, "standard_games", [])
     ranked_duels = geo.ranked_duel_games + user_data.ranked_duel_games
     unranked_duels = geo.unranked_duel_games + user_data.unranked_duel_games
     ranked_team_duels = {}
@@ -65,6 +67,11 @@ def fetch_command(args):
     dc_file = os.path.join(output_dir, f"{username}_daily_challenge.json")
     with open(dc_file, "w") as f:
         json.dump(daily_challenge_games, f, default=enum_serializer, indent=2)
+
+    print(f"Saving {len(standard_games)} standard games")
+    standard_file = os.path.join(output_dir, f"{username}_standard_games.json")
+    with open(standard_file, "w") as f:
+        json.dump(standard_games, f, default=enum_serializer, indent=2)
 
     print(f"Saving {len(ranked_duels)} ranked duel games")
     duel_file = os.path.join(output_dir, f"{username}_ranked_duels.json")
