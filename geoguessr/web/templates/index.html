@@ -98,7 +98,7 @@
             <table>
               <thead>
                 <tr>
-                  <th>#</th><th>Country</th><th>Wrong %</th><th>Wrong</th><th>Rounds</th>
+                  <th>#</th><th>Country</th><th>Wrong %</th><th>Rounds</th>
                 </tr>
               </thead>
               <tbody>
@@ -107,7 +107,6 @@
                     <td>{{r.idx}}</td>
                     <td>{{r.name}}</td>
                     <td>{{"%.1f"|format(r.wrong_pct)}}</td>
-                    <td>{{r.wrong}}</td>
                     <td>{{r.rounds}}</td>
                   </tr>
                 {% endfor %}
