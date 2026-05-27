@@ -133,6 +133,7 @@ def country_command(args):
     country = args.country
     max_games = args.max_games
     include = args.include
+    mode = _parse_analyse_mode(args.mode)
 
     if not country or len(country.strip()) != 2:
         print("Country must be a 2-letter country code (e.g. 'US')")
@@ -147,6 +148,9 @@ def country_command(args):
         duel_games = list(player_data.unranked_duel_games)
     else:
         duel_games = list(player_data.ranked_duel_games) + list(player_data.unranked_duel_games)
+
+    if mode is not None:
+        duel_games = [g for g in duel_games if getattr(g, "mode", None) == mode]
 
     if max_games is not None:
         if max_games <= 0:
@@ -473,6 +477,7 @@ def main():
     country_parser.add_argument("username", type=str, help="Username to analyse")
     country_parser.add_argument("country", type=str, help="2-letter country code (e.g. US)")
     country_parser.add_argument("--include", choices=["ranked", "unranked", "both"], default="both", help="Which games to include")
+    country_parser.add_argument("-mode", "--mode", choices=["moving", "nm", "nmpz"], default=None, help="Game mode filter")
     country_parser.add_argument("--max-games", type=int, default=None, help="Limit to the most recent N games")
     country_parser.set_defaults(func=country_command)
 

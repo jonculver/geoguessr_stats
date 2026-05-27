@@ -108,12 +108,13 @@ Duel round entries include additional location detail:
 List duel rounds where the *actual* round country matches a given 2-letter code. Output includes the net damage, whether your guess was the correct country (when available), and useful URLs.
 
 ```bash
-python -m geoguessr country <username> <country-code> [--include <ranked|unranked|both>] [--max-games <n>]
+python -m geoguessr country <username> <country-code> [--include <ranked|unranked|both>] [--mode <moving|nm|nmpz>] [--max-games <n>]
 ```
 
 - `<username>`: The username as listed in `users.json`
 - `<country-code>`: 2-letter country code (e.g. `US`, `IT`)
 - `--include`: (Optional) Which duels to include (`ranked`, `unranked`, or `both`)
+- `--mode`: (Optional) Game mode filter (`moving`, `nm`, `nmpz`)
 - `--max-games`: (Optional) Limit to rounds from the most recent N duel games
 
 Output format (per round):
