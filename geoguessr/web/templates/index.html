@@ -116,7 +116,7 @@
                     <td>{{"%.1f"|format(r.wrong_pct)}}</td>
                     <td>{{r.rounds}}</td>
                     <td>
-                      <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}">show rounds with damage taken</a>
+                      <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}">Show Rounds with Damage Taken</a>
                     </td>
                   </tr>
                 {% endfor %}
@@ -140,7 +140,7 @@
                       <td data-sort-value="{{r.win}}">{{r.win}}</td>
                       <td>{{r.rounds}}</td>
                       <td>
-                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}">show rounds with damage taken</a>
+                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}">Show Rounds with Damage Taken</a>
                       </td>
                     </tr>
                   {% endfor %}
@@ -161,7 +161,7 @@
                       <td>{{r.win}}</td>
                       <td>{{r.rounds}}</td>
                       <td>
-                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}">show rounds with damage taken</a>
+                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}">Show Rounds with Damage Taken</a>
                       </td>
                     </tr>
                   {% endfor %}
@@ -182,7 +182,7 @@
                       <td>{{"%.2f"|format(r.avg_net)}}</td>
                       <td>{{r.rounds}}</td>
                       <td>
-                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}">show rounds with damage taken</a>
+                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}">Show Rounds with Damage Taken</a>
                       </td>
                     </tr>
                   {% endfor %}
@@ -197,7 +197,7 @@
       <div id="tab-panel-country" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-country">
         <div class="tab-content">
           <h2>Country Analysis</h2>
-          <div class="help">Displays rounds in whic took damage on a specific country</div>
+          <div class="help">Displays rounds in a specific country in which damage was taken</div>
           <form method="post" action="/country">
           {% set cf = country.form if country else country_form %}
           <label>Username</label>
