@@ -126,7 +126,7 @@
                     <td>{{"%.1f"|format(r.wrong_pct)}}</td>
                     <td>{{r.rounds}}</td>
                     <td>
-                      <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}{% if analyse.form.max_days %}&max_days={{ analyse.form.max_days }}{% endif %}">Show Rounds with Damage Taken</a>
+                      <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}&min_net=-5000{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}{% if analyse.form.max_days %}&max_days={{ analyse.form.max_days }}{% endif %}">Show Rounds</a>
                     </td>
                   </tr>
                 {% endfor %}
@@ -150,7 +150,7 @@
                       <td data-sort-value="{{r.win}}">{{r.win}}</td>
                       <td>{{r.rounds}}</td>
                       <td>
-                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}&both_correct=true{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}{% if analyse.form.max_days %}&max_days={{ analyse.form.max_days }}{% endif %}">Show Rounds with Damage Taken</a>
+                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}&both_correct=true&min_net=-5000{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}{% if analyse.form.max_days %}&max_days={{ analyse.form.max_days }}{% endif %}">Show Rounds</a>
                       </td>
                     </tr>
                   {% endfor %}
@@ -171,7 +171,7 @@
                       <td>{{r.win}}</td>
                       <td>{{r.rounds}}</td>
                       <td>
-                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}{% if analyse.form.max_days %}&max_days={{ analyse.form.max_days }}{% endif %}">Show Rounds with Damage Taken</a>
+                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}&min_net=-5000{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}{% if analyse.form.max_days %}&max_days={{ analyse.form.max_days }}{% endif %}">Show Rounds</a>
                       </td>
                     </tr>
                   {% endfor %}
@@ -192,7 +192,7 @@
                       <td>{{"%.2f"|format(r.avg_net)}}</td>
                       <td>{{r.rounds}}</td>
                       <td>
-                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}{% if analyse.form.max_days %}&max_days={{ analyse.form.max_days }}{% endif %}">Show Rounds with Damage Taken</a>
+                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}&min_net=-5000{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}{% if analyse.form.max_days %}&max_days={{ analyse.form.max_days }}{% endif %}">Show Rounds</a>
                       </td>
                     </tr>
                   {% endfor %}
