@@ -31,7 +31,12 @@ def _run_command_capture(func, args_obj) -> tuple[str, str]:
     stdout_buf = io.StringIO()
     stderr_buf = io.StringIO()
     with redirect_stdout(stdout_buf), redirect_stderr(stderr_buf):
-        func(args_obj)
+        try:
+            func(args_obj)
+        except SystemExit:
+            # CLI commands use sys.exit() for validation; in the web UI we want
+            # to show captured output instead of returning a 500.
+            pass
     return stdout_buf.getvalue(), stderr_buf.getvalue()
 
 

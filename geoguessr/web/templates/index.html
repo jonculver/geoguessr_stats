@@ -256,7 +256,8 @@
           <div class="help">Only include N most recent duels for current filters. Available games for current filters: <span class="mono" id="country-available-games">{{ country_available_games if country_available_games is not none else 0 }}</span></div>
 
           <label>Minimum net damage taken</label>
-          <input type="number" name="min_net" min="0" step="1" value="{{ cf.min_net if cf and cf.min_net is not none else 0 }}" />
+          <input type="number" name="min_net" min="-5000" max="5000" step="1" value="{{ cf.min_net if cf and cf.min_net is not none else 0 }}" />
+          <div class="help">Applies to net damage divided by multipliers (taken / opponent multiplier minus dealt / team multiplier).</div>
 
           <label>Number of days to analyse (optional)</label>
           <input type="number" name="max_days" min="1" value="{{ cf.max_days if cf and cf.max_days is not none else '' }}" />
