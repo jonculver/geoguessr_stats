@@ -21,6 +21,9 @@ def fetch_command(args):
     """Fetch GeoGuessr games for a user."""
     username = args.username
     max_games = args.max_games
+
+    def _is_rated_duel(g) -> bool:
+        return bool((getattr(g, "rating_before", 0) or 0) or (getattr(g, "rating_after", 0) or 0))
     
     # Load token from users.json
     with open("users.json", "r") as f:
@@ -51,14 +54,20 @@ def fetch_command(args):
 
     # Structured summary for web UI (and other callers) to consume.
     try:
+        new_ranked_duels = [g for g in (getattr(geo, "ranked_duel_games", []) or []) if _is_rated_duel(g)] + [
+            g for g in (getattr(geo, "unranked_duel_games", []) or []) if _is_rated_duel(g)
+        ]
+        new_unranked_duels = [g for g in (getattr(geo, "ranked_duel_games", []) or []) if not _is_rated_duel(g)] + [
+            g for g in (getattr(geo, "unranked_duel_games", []) or []) if not _is_rated_duel(g)
+        ]
         new_team_duels = sum(len(v) for v in (getattr(geo, "ranked_team_duel_games", {}) or {}).values())
         args._fetch_stats = {
             "pages_fetched": getattr(geo, "pages_fetched", None),
             "new": {
                 "daily_challenge": len(getattr(geo, "daily_challenge_games", []) or []),
                 "standard": len(getattr(geo, "standard_games", []) or []),
-                "ranked_duels": len(getattr(geo, "ranked_duel_games", []) or []),
-                "unranked_duels": len(getattr(geo, "unranked_duel_games", []) or []),
+                "ranked_duels": len(new_ranked_duels),
+                "unranked_duels": len(new_unranked_duels),
                 "ranked_team_duels": int(new_team_duels),
             },
         }
@@ -71,6 +80,37 @@ def fetch_command(args):
     standard_games = geo.standard_games + getattr(user_data, "standard_games", [])
     ranked_duels = geo.ranked_duel_games + user_data.ranked_duel_games
     unranked_duels = geo.unranked_duel_games + user_data.unranked_duel_games
+
+    # The feed occasionally labels unranked/quickplay duels as competitive.
+    # Re-bucket based on whether we actually have rating progress.
+    def _rebucket_duels(ranked_list, unranked_list):
+        by_id = {}
+        for g in list(ranked_list or []) + list(unranked_list or []):
+            gid = getattr(g, "game_id", None) or ""
+            if not gid:
+                continue
+            rated = _is_rated_duel(g)
+            prev = by_id.get(gid)
+            if prev is None:
+                by_id[gid] = g
+            else:
+                # Prefer the rated version if we have one.
+                if rated and not _is_rated_duel(prev):
+                    by_id[gid] = g
+
+        new_ranked = []
+        new_unranked = []
+        for g in by_id.values():
+            (new_ranked if _is_rated_duel(g) else new_unranked).append(g)
+
+        def ts(g):
+            return getattr(g, "start_time", "") or getattr(g, "time", "") or ""
+
+        new_ranked.sort(key=ts, reverse=True)
+        new_unranked.sort(key=ts, reverse=True)
+        return new_ranked, new_unranked
+
+    ranked_duels, unranked_duels = _rebucket_duels(ranked_duels, unranked_duels)
     ranked_team_duels = {}
 
     teammates = set(geo.ranked_team_duel_games.keys()).union(set(user_data.ranked_team_duel_games.keys()))
