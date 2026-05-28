@@ -366,7 +366,14 @@ def country_command(args):
             game_id = getattr(game, 'game_id', '')
             game_url = f"https://www.geoguessr.com/duels/{game_id}" if game_id else ""
             net_display = int(round(net_damage))
-            line = f"  {date} duel={duel_type} mode={mode_display} net={net_display} round={i} correct={correct}\n    {game_url}\n    {sv_url}\n"
+            dist_m = int(getattr(duel_round, "distance_meters", 0) or 0)
+            dist_km = dist_m / 1000.0
+            dist_km_int = int(round(dist_km))
+            line = (
+                f"  {date} duel={duel_type} mode={mode_display} net={net_display} round={i} correct={correct} dist_km={dist_km_int}\n"
+                f"    {game_url}\n"
+                f"    {sv_url}\n"
+            )
             rows.append((net_damage, parse_ts(start_time), line))
 
     # Sort by net damage (highest first), then by time for stability.

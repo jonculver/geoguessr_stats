@@ -294,7 +294,7 @@
           <table>
             <thead>
               <tr>
-                <th>#</th><th>Date</th><th>Duel Type</th><th>Net damage taken (divided by multiplier)</th><th>Country correct</th><th>Duel</th><th>Street View</th>
+                <th>#</th><th>Date</th><th>Duel Type</th><th>Net damage taken (divided by multiplier)</th><th>Country correct</th><th>Distance (km)</th><th>Duel</th><th>Street View</th>
               </tr>
             </thead>
             <tbody>
@@ -305,6 +305,7 @@
                   <td class="mono">{{r.duel_type}}</td>
                   <td class="mono">{{r.net}}</td>
                   <td class="mono">{{r.correct}}</td>
+                  <td class="mono">{% if r.distance_km is defined and r.distance_km is not none %}{{ r.distance_km|round(0, 'common')|int }}{% endif %}</td>
                   <td>
                     {% if r.duel_url %}
                       <a href="{{r.duel_url}}" target="_blank">link</a> <span class="mono">(round {{r.round}})</span>

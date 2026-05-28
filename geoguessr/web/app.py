@@ -145,7 +145,7 @@ _WRONG_COUNTRY_ROW_RE = re.compile(
 )
 
 _COUNTRY_LINE_RE = re.compile(
-    r"^\s*(?P<date>\d{4}-\d{2}-\d{2})\s+(?:duel=(?P<duel>\S+)\s+)?(?:mode=(?P<mode>\S+)\s+)?net=(?P<net>-?\d+)\s+round=(?P<round>\d+)\s+correct=(?P<correct>[YN?])\s*$"
+    r"^\s*(?P<date>\d{4}-\d{2}-\d{2})\s+(?:duel=(?P<duel>\S+)\s+)?(?:mode=(?P<mode>\S+)\s+)?net=(?P<net>-?\d+)\s+round=(?P<round>\d+)\s+correct=(?P<correct>[YN?])(?:\s+dist_km=(?P<dist_km>[-0-9.]+))?\s*$"
 )
 
 
@@ -199,6 +199,8 @@ def _parse_country(stdout_text: str) -> list[dict[str, Any]]:
         net = int(m.group("net"))
         round_n = int(m.group("round"))
         correct = m.group("correct")
+        dist_km_raw = m.group("dist_km")
+        distance_km = float(dist_km_raw) if dist_km_raw is not None else None
 
         duel_url = ""
         sv_url = ""
@@ -214,6 +216,7 @@ def _parse_country(stdout_text: str) -> list[dict[str, Any]]:
                 "net": net,
                 "round": round_n,
                 "correct": correct,
+                "distance_km": distance_km,
                 "duel_url": duel_url,
                 "sv_url": sv_url,
             }
