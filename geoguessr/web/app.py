@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import re
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
@@ -11,7 +12,7 @@ from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from geoguessr.__main__ import analyse_command, country_command
+from geoguessr.__main__ import analyse_command, country_command, fetch_command
 from geoguessr.game import GameMode
 from geoguessr.user import PlayerData
 
@@ -38,6 +39,18 @@ def _run_command_capture(func, args_obj) -> tuple[str, str]:
             # to show captured output instead of returning a 500.
             pass
     return stdout_buf.getvalue(), stderr_buf.getvalue()
+
+
+def _run_command_capture_in_dir(func, args_obj, cwd: Path) -> tuple[str, str]:
+    prev = os.getcwd()
+    try:
+        os.chdir(str(cwd))
+        return _run_command_capture(func, args_obj)
+    finally:
+        try:
+            os.chdir(prev)
+        except Exception:
+            pass
 
 
 def _team_duel_teammates_for_user(repo_root: Path, username: str) -> list[str]:
@@ -270,6 +283,8 @@ def create_app() -> FastAPI:
         default_max_games: Optional[int] = None
         default_max_days: Optional[int] = None
         default_min_net: int = 0
+        default_update_max_games: int = 1000
+        default_update_overwrite: bool = False
         default_country = ""
 
         country_options = (
@@ -305,6 +320,12 @@ def create_app() -> FastAPI:
                 "analyse": None,
                 "analyse_available_games": analyse_available_games,
                 "country": None,
+                "update": None,
+                "update_form": {
+                    "username": default_username,
+                    "max_games": default_update_max_games,
+                    "overwrite": default_update_overwrite,
+                },
                 "country_form": {
                     "username": default_username,
                     "country": default_country,
@@ -316,6 +337,65 @@ def create_app() -> FastAPI:
                 },
                 "country_available_games": country_available_games,
                 "country_options": country_options,
+            },
+        )
+
+    @app.post("/update-data", response_class=HTMLResponse)
+    def update_data(
+        request: Request,
+        username: str = Form(...),
+        max_games: int = Form(1000),
+        overwrite: Optional[str] = Form(None),
+    ):
+        class Args:
+            pass
+
+        args = Args()
+        args.username = username
+        args.max_games = max_games
+        args.overwrite = overwrite is not None
+
+        stdout, stderr = _run_command_capture_in_dir(fetch_command, args, repo_root)
+
+        analyse_available_games = _available_games_count(username, "both", None, None)
+        country_available_games = analyse_available_games
+
+        return templates.TemplateResponse(
+            "index.html",
+            {
+                "request": request,
+                "usernames": _load_usernames(repo_root),
+                "analyse_teammates": _team_duel_teammates_for_user(repo_root, username) if username else [],
+                "country_teammates": _team_duel_teammates_for_user(repo_root, username) if username else [],
+                "analyse": None,
+                "analyse_available_games": analyse_available_games,
+                "country": None,
+                "country_form": {
+                    "username": username,
+                    "country": "",
+                    "mode": None,
+                    "include": "both",
+                    "max_games": None,
+                    "max_days": None,
+                    "min_net": 0,
+                    "both_correct": False,
+                },
+                "country_available_games": country_available_games,
+                "country_options": (_country_options_for_user(username, "both", None, None, None) if username else []),
+                "update": {
+                    "form": {
+                        "username": username,
+                        "max_games": max_games,
+                        "overwrite": overwrite is not None,
+                    },
+                    "stdout": stdout.strip(),
+                    "stderr": stderr.strip(),
+                },
+                "update_form": {
+                    "username": username,
+                    "max_games": max_games,
+                    "overwrite": overwrite is not None,
+                },
             },
         )
 
@@ -370,6 +450,12 @@ def create_app() -> FastAPI:
                 },
                 "analyse_available_games": analyse_available_games,
                 "country": None,
+                "update": None,
+                "update_form": {
+                    "username": username,
+                    "max_games": 1000,
+                    "overwrite": False,
+                },
                 "country_form": {
                     "username": username,
                     "country": "",
@@ -442,6 +528,12 @@ def create_app() -> FastAPI:
                     "stderr": stderr.strip(),
                     "rows": rows,
                 },
+                "update": None,
+                "update_form": {
+                    "username": username,
+                    "max_games": 1000,
+                    "overwrite": False,
+                },
                 "country_form": {
                     "username": username,
                     "country": country,
@@ -512,6 +604,12 @@ def create_app() -> FastAPI:
                     },
                     "stderr": stderr.strip(),
                     "rows": rows,
+                },
+                "update": None,
+                "update_form": {
+                    "username": username,
+                    "max_games": 1000,
+                    "overwrite": False,
                 },
                 "country_form": {
                     "username": username,
