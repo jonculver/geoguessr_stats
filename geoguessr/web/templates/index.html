@@ -69,6 +69,7 @@
             <option value="both" {% if inc=="both" %}selected{% endif %}>Ranked and Unranked Solo</option>
             <option value="ranked" {% if inc=="ranked" %}selected{% endif %}>Ranked Solo</option>
             <option value="unranked" {% if inc=="unranked" %}selected{% endif %}>Unranked Solo</option>
+            <option value="party" {% if inc=="party" %}selected{% endif %}>Party Games</option>
               {% if analyse_teammates %}
                 {% for t in analyse_teammates %}
                   {% set v = "team:" ~ t %}
@@ -236,6 +237,7 @@
             <option value="both" {% if inc2=="both" %}selected{% endif %}>Ranked and Unranked Solo</option>
             <option value="ranked" {% if inc2=="ranked" %}selected{% endif %}>Ranked Solo</option>
             <option value="unranked" {% if inc2=="unranked" %}selected{% endif %}>Unranked Solo</option>
+            <option value="party" {% if inc2=="party" %}selected{% endif %}>Party Games</option>
               {% if country_teammates %}
                 {% for t in country_teammates %}
                   {% set v = "team:" ~ t %}
@@ -322,25 +324,25 @@
         {% endif %}
         </div>
 
-          <div id="tab-panel-classic" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-classic">
-            <div class="tab-content">
-              <h2>Classic Game Analysis</h2>
-              {% set clf = classic.form if classic else classic_form %}
+      </div>
+
+      <div id="tab-panel-classic" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-classic">
+        <div class="tab-content">
+          <h2>Classic Game Analysis</h2>
+          {% set clf = classic.form if classic else classic_form %}
 
               <form method="post" action="/classic">
-                <label>User</label>
+                <label>Username</label>
                 <select name="username" required>
                   {% for u in usernames %}
                     <option value="{{u}}" {% if clf and clf.username==u %}selected{% endif %}>{{u}}</option>
                   {% endfor %}
                 </select>
 
-                <label>Mode</label>
-                <select name="mode">
-                  <option value="" {% if not clf or not clf.mode %}selected{% endif %}>Any</option>
-                  <option value="moving" {% if clf and clf.mode=='moving' %}selected{% endif %}>Moving</option>
-                  <option value="nm" {% if clf and clf.mode=='nm' %}selected{% endif %}>NM</option>
-                  <option value="nmpz" {% if clf and clf.mode=='nmpz' %}selected{% endif %}>NMPZ</option>
+                <label>Analysis Type</label>
+                <select name="sort_by">
+                  <option value="accuracy" {% if not clf or clf.sort_by=='accuracy' %}selected{% endif %}>Country Accuracy Analysis</option>
+                  <option value="avg_score" {% if clf and clf.sort_by=='avg_score' %}selected{% endif %}>Score Analysis</option>
                 </select>
 
                 <label>Map</label>
@@ -352,17 +354,22 @@
                   {% endfor %}
                 </select>
 
-                <label>Max games</label>
+                <label>Mode</label>
+                <select name="mode">
+                  <option value="" {% if not clf or not clf.mode %}selected{% endif %}>Any</option>
+                  <option value="moving" {% if clf and clf.mode=='moving' %}selected{% endif %}>Moving</option>
+                  <option value="nm" {% if clf and clf.mode=='nm' %}selected{% endif %}>NM</option>
+                  <option value="nmpz" {% if clf and clf.mode=='nmpz' %}selected{% endif %}>NMPZ</option>
+                </select>
+
+                <label>Number of games to analyse (optional)</label>
                 <input type="number" name="max_games" min="1" value="{{ clf.max_games if clf and clf.max_games is not none else '' }}" />
 
-                <label>Days</label>
+                <label>Number of days to analyse (optional)</label>
                 <input type="number" name="max_days" min="1" value="{{ clf.max_days if clf and clf.max_days is not none else '' }}" />
 
-                <label>Sort by</label>
-                <select name="sort_by">
-                  <option value="accuracy" {% if not clf or clf.sort_by=='accuracy' %}selected{% endif %}>Classic accuracy</option>
-                  <option value="avg_score" {% if clf and clf.sort_by=='avg_score' %}selected{% endif %}>Average score</option>
-                </select>
+                <label>Minimum Rounds (optional)</label>
+                <input type="number" name="min_rounds" min="1" value="{{ clf.min_rounds if clf and clf.min_rounds is not none else '' }}" />
 
                 <button type="submit">Run</button>
               </form>
@@ -371,31 +378,39 @@
                 {% if classic.stderr %}
                   <div class="warn">{{ classic.stderr }}</div>
                 {% endif %}
+                {% set classic_sort = (classic.form.sort_by if classic.form and classic.form.sort_by else 'accuracy') %}
                 <table>
                   <thead>
                     <tr>
                       <th>Country</th>
-                      <th class="mono">Rounds</th>
-                      <th class="mono">Correct</th>
-                      <th class="mono">Accuracy</th>
-                      <th class="mono">Avg score</th>
+                      {% if classic_sort == 'avg_score' %}
+                        <th class="mono">Average score</th>
+                        <th class="mono">Rounds</th>
+                      {% else %}
+                        <th class="mono">Accuracy</th>
+                        <th class="mono">Rounds</th>
+                        <th class="mono">Average score</th>
+                      {% endif %}
                     </tr>
                   </thead>
                   <tbody>
                     {% for r in classic.rows %}
                       <tr>
                         <td>{{ r.name }}</td>
-                        <td class="mono">{{ r.rounds }}</td>
-                        <td class="mono">{{ r.correct }}</td>
-                        <td class="mono">{{ "%.1f"|format(r.accuracy) }}%</td>
-                        <td class="mono">{{ (r.avg_score|round(0))|int }}</td>
+                        {% if classic_sort == 'avg_score' %}
+                          <td class="mono">{{ (r.avg_score|round(0))|int }}</td>
+                          <td class="mono">{{ r.rounds }}</td>
+                        {% else %}
+                          <td class="mono">{{ "%.1f"|format(r.accuracy) }}%</td>
+                          <td class="mono">{{ r.rounds }}</td>
+                          <td class="mono">{{ (r.avg_score|round(0))|int }}</td>
+                        {% endif %}
                       </tr>
                     {% endfor %}
                   </tbody>
                 </table>
               {% endif %}
-            </div>
-          </div>
+        </div>
       </div>
 
       <div id="tab-panel-update" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-update">
@@ -444,9 +459,9 @@
         function rebuildIncludeOptions(selectEl, partners, selectedValue) {
           if (!selectEl) return;
 
-          // Preserve the first 3 base options (both/ranked/unranked) if they exist.
+          // Preserve the base options if they exist.
           var base = Array.prototype.slice.call(selectEl.querySelectorAll('option')).filter(function (o) {
-            return o.value === 'both' || o.value === 'ranked' || o.value === 'unranked';
+            return o.value === 'both' || o.value === 'ranked' || o.value === 'unranked' || o.value === 'party';
           });
 
           // Clear all options.
@@ -648,6 +663,19 @@
             var usernameEl = panel.querySelector('select[name="username"]');
             var mapEl = panel.querySelector('select[name="map_name"]');
             if (!usernameEl || !mapEl) return;
+
+            // If the user changes sorting, auto-run (submit) to refresh results.
+            var sortEl = panel.querySelector('select[name="sort_by"]');
+            var formEl = panel.querySelector('form[action="/classic"]');
+            if (sortEl && formEl) {
+              sortEl.addEventListener('change', function () {
+                if (typeof formEl.requestSubmit === 'function') {
+                  formEl.requestSubmit();
+                } else {
+                  formEl.submit();
+                }
+              });
+            }
 
             function rebuildMaps(maps, selectedValue) {
               var anyOpt = document.createElement('option');

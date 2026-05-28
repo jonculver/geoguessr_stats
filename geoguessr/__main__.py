@@ -271,6 +271,8 @@ def country_command(args):
         duel_games = [(g, "Ranked") for g in list(player_data.ranked_duel_games)]
     elif include == "unranked":
         duel_games = [(g, "Unranked") for g in list(player_data.unranked_duel_games)]
+    elif include == "party":
+        duel_games = [(g, "Party") for g in list(getattr(player_data, "party_duel_games", []) or [])]
     elif include == "both" or not include:
         duel_games = [(g, "Ranked") for g in list(player_data.ranked_duel_games)] + [
             (g, "Unranked") for g in list(player_data.unranked_duel_games)
@@ -573,6 +575,8 @@ def analyse_command(args):
         duel_games = list(player_data.ranked_duel_games)
     elif include == "unranked":
         duel_games = list(player_data.unranked_duel_games)
+    elif include == "party":
+        duel_games = list(getattr(player_data, "party_duel_games", []) or [])
     elif include == "both" or not include:
         duel_games = list(player_data.ranked_duel_games) + list(player_data.unranked_duel_games)
     else:
@@ -850,7 +854,7 @@ def main():
     country_parser.add_argument(
         "--include",
         default="both",
-        help="Which games to include: ranked | unranked | both | team:<teammate>",
+        help="Which games to include: ranked | unranked | party | both | team:<teammate>",
     )
     country_parser.add_argument("-mode", "--mode", choices=["moving", "nm", "nmpz"], default=None, help="Game mode filter")
     country_parser.add_argument("--max-days", type=int, default=None, help="Only include games from the last N days")
@@ -877,7 +881,7 @@ def main():
         "-include",
         "--include",
         default="both",
-        help="Which games to include: ranked | unranked | both | team:<teammate>",
+        help="Which games to include: ranked | unranked | party | both | team:<teammate>",
     )
     analyse_parser.add_argument("--max-games", type=int, default=None, help="Limit analysis to the most recent N games")
     analyse_parser.add_argument("--max-days", type=int, default=None, help="Only include games from the last N days")

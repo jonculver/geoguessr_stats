@@ -92,12 +92,14 @@ class PlayerData:
         self.standard_games: list[GeoguessrStandardGame] = []
         self.ranked_duel_games: list[GeoguessrDuelGame] = []
         self.unranked_duel_games: list[GeoguessrDuelGame] = []
+        self.party_duel_games: list[GeoguessrDuelGame] = []
         self.ranked_team_duel_games: dict[str, list[GeoguessrDuelGame]] = {}
 
         self._get_daily_challenge_games()
         self._get_standard_games()
         self._get_ranked_duel_games()
         self._get_unranked_duel_games()
+        self._get_party_duel_games()
         self._get_ranked_team_duel_games()
 
     def __str__(self):
@@ -107,6 +109,7 @@ class PlayerData:
             f"  Standard Games: {len(self.standard_games)}",
             f"  Ranked Duel Games: {len(self.ranked_duel_games)}",
             f"  Unranked Duel Games: {len(self.unranked_duel_games)}",
+            f"  Party Duel Games: {len(self.party_duel_games)}",
             f"  Ranked Team Duel Games: {', '.join([f'{teammate}: {len(games)}' for teammate, games in self.ranked_team_duel_games.items()])}"
         ])
 
@@ -173,6 +176,19 @@ class PlayerData:
             raw_data = json.load(f)
         for item in raw_data:
             self.unranked_duel_games.append(GeoguessrDuelGame.from_json(item))
+
+    def _get_party_duel_games(self):
+        """Read data from output/USERNAME_party_games.json and populate party_duel_games."""
+        filepath = f"output/{self.username}_party_games.json"
+        if not os.path.exists(filepath):
+            return
+        with open(filepath, "r", encoding="utf-8") as f:
+            raw_data = json.load(f)
+        if not isinstance(raw_data, list):
+            return
+        for item in raw_data:
+            # Party games are stored as duel-game JSON.
+            self.party_duel_games.append(GeoguessrDuelGame.from_json(item))
     
     def _get_ranked_team_duel_games(self):
         """

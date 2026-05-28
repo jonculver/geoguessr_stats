@@ -25,6 +25,7 @@ except Exception:  # pragma: no cover
 
 
 TEAM_DUEL_PARTNER_MIN_GAMES = int(os.getenv("GG_TEAM_DUEL_MIN_GAMES", "10"))
+CLASSIC_MAP_MIN_GAMES = int(os.getenv("GG_CLASSIC_MAP_MIN_GAMES", "50"))
 
 
 def _parse_iso_datetime(ts: str) -> Optional[datetime]:
@@ -57,16 +58,20 @@ def _classic_mode_label(raw: dict) -> str:
     return "nmpz" if forbid_zooming else "nm"
 
 
-def _classic_maps_for_user(username: str) -> list[str]:
+def _classic_maps_for_user(username: str, min_games: int = CLASSIC_MAP_MIN_GAMES) -> list[str]:
     username = (username or "").strip()
     if not username:
         return []
+    if min_games < 1:
+        min_games = 1
     player_data = PlayerData(username)
-    maps: set[str] = set()
+    counts: dict[str, int] = {}
     for g in getattr(player_data, "standard_games", []) or []:
         name = (getattr(g, "map_name", "") or "").strip()
         if name:
-            maps.add(name)
+            counts[name] = counts.get(name, 0) + 1
+
+    maps = [name for name, n in counts.items() if n >= min_games]
     return sorted(maps, key=lambda s: s.lower())
 
 
@@ -76,6 +81,7 @@ def _classic_country_rows(
     map_name: Optional[str],
     max_games: Optional[int],
     max_days: Optional[int],
+    min_rounds: Optional[int],
     sort_by: str,
 ) -> list[dict[str, object]]:
     username = (username or "").strip()
@@ -103,6 +109,9 @@ def _classic_country_rows(
         if max_games <= 0:
             return []
         games = games[:max_games]
+
+    if min_rounds is not None and min_rounds <= 0:
+        return []
 
     # country_code -> stats
     stats: dict[str, dict[str, float]] = {}
@@ -150,6 +159,11 @@ def _classic_country_rows(
 
         rounds = raw.get("rounds")
         guesses = raw.get("guesses")
+        if not isinstance(guesses, list):
+            player = raw.get("player")
+            if isinstance(player, dict):
+                guesses = player.get("guesses")
+
         if not isinstance(rounds, list) or not isinstance(guesses, list):
             continue
         n = min(len(rounds), len(guesses))
@@ -182,6 +196,8 @@ def _classic_country_rows(
         rounds = int(s.get("rounds", 0.0) or 0.0)
         if rounds <= 0:
             continue
+        if min_rounds is not None and rounds < min_rounds:
+            continue
         correct = int(s.get("correct", 0.0) or 0.0)
         score_sum = float(s.get("score", 0.0) or 0.0)
         acc = (100.0 * correct / rounds) if rounds else 0.0
@@ -199,9 +215,11 @@ def _classic_country_rows(
 
     sort_norm = (sort_by or "").strip().lower()
     if sort_norm == "avg_score":
-        rows.sort(key=lambda r: (float(r.get("avg_score", 0.0) or 0.0), int(r.get("rounds", 0) or 0)), reverse=True)
+        # Lowest average score first (ascending).
+        rows.sort(key=lambda r: (float(r.get("avg_score", 0.0) or 0.0), int(r.get("rounds", 0) or 0)))
     else:
-        rows.sort(key=lambda r: (float(r.get("accuracy", 0.0) or 0.0), int(r.get("rounds", 0) or 0)), reverse=True)
+        # Least accurate first (ascending).
+        rows.sort(key=lambda r: (float(r.get("accuracy", 0.0) or 0.0), int(r.get("rounds", 0) or 0)))
     return rows
 
 
@@ -311,6 +329,8 @@ def _available_games_count(username: str, include: str, mode: Optional[str], max
         games = list(getattr(player_data, "ranked_duel_games", []) or [])
     elif include == "unranked":
         games = list(getattr(player_data, "unranked_duel_games", []) or [])
+    elif include == "party":
+        games = list(getattr(player_data, "party_duel_games", []) or [])
     else:
         games = list(getattr(player_data, "ranked_duel_games", []) or []) + list(
             getattr(player_data, "unranked_duel_games", []) or []
@@ -617,12 +637,13 @@ def create_app() -> FastAPI:
         map_name: str = Form(""),
         max_games: Optional[int] = Form(None),
         max_days: Optional[int] = Form(None),
+        min_rounds: Optional[int] = Form(None),
         sort_by: Optional[Literal["accuracy", "avg_score"]] = Form("accuracy"),
     ):
         rows: list[dict[str, object]] = []
         stderr = ""
         try:
-            rows = _classic_country_rows(username, mode, map_name, max_games, max_days, sort_by or "accuracy")
+            rows = _classic_country_rows(username, mode, map_name, max_games, max_days, min_rounds, sort_by or "accuracy")
         except Exception as e:
             stderr = str(e)
 
@@ -647,6 +668,7 @@ def create_app() -> FastAPI:
                     "map_name": "",
                     "max_games": None,
                     "max_days": None,
+                    "min_rounds": None,
                     "sort_by": "accuracy",
                 },
                 "classic_maps": _classic_maps_for_user(username) if username else [],
@@ -674,6 +696,7 @@ def create_app() -> FastAPI:
                         "map_name": map_name,
                         "max_games": max_games,
                         "max_days": max_days,
+                        "min_rounds": min_rounds,
                         "sort_by": sort_by or "accuracy",
                     },
                     "stderr": stderr,
@@ -686,6 +709,7 @@ def create_app() -> FastAPI:
                     "map_name": map_name,
                     "max_games": max_games,
                     "max_days": max_days,
+                    "min_rounds": min_rounds,
                     "sort_by": sort_by or "accuracy",
                 },
                 "classic_maps": _classic_maps_for_user(username) if username else [],
@@ -717,6 +741,7 @@ def create_app() -> FastAPI:
 
         default_classic_mode: Optional[Literal["moving", "nm", "nmpz"]] = None
         default_classic_map_name: str = ""
+        default_classic_min_rounds: Optional[int] = None
         default_classic_sort_by: str = "accuracy"
 
         country_options = (
@@ -767,6 +792,7 @@ def create_app() -> FastAPI:
                     "map_name": default_classic_map_name,
                     "max_games": default_max_games,
                     "max_days": default_max_days,
+                    "min_rounds": default_classic_min_rounds,
                     "sort_by": default_classic_sort_by,
                 },
                 "classic_maps": classic_maps,
