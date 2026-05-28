@@ -93,6 +93,8 @@ class GeoguessrDuelGame:
     teammate: str = ""
     start_time: str = ""
     duration_secs: int = 0
+    context_type: str = ""
+    context_id: str = ""
 
     @classmethod
     def from_json(cls, data: dict) -> 'GeoguessrDuelGame':
@@ -157,7 +159,9 @@ class GeoguessrDuelGame:
             game_mode_rating_after=data.get('game_mode_rating_after', 0),
             teammate=data.get('teammate', ''),
             start_time=data.get('start_time', ''),
-            duration_secs=data.get('duration_secs', 0)
+            duration_secs=data.get('duration_secs', 0),
+            context_type=data.get('context_type', '') or "",
+            context_id=data.get('context_id', '') or "",
         )
         instance.player_id = data.get('player_id', '')
         return instance
@@ -175,6 +179,11 @@ class GeoguessrDuelGame:
             opponents=[]
         )
         instance.player_id = player_id
+
+        ctx = data.get('context') or {}
+        if isinstance(ctx, dict):
+            instance.context_type = ctx.get('type') or ""
+            instance.context_id = ctx.get('id') or ""
         
         map_dict = data.get('options', {}).get('map', {})
         if map_dict:

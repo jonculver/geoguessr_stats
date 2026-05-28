@@ -116,6 +116,56 @@ def fetch_command(args):
     teammates = set(geo.ranked_team_duel_games.keys()).union(set(user_data.ranked_team_duel_games.keys()))
     for teammate in teammates:
         ranked_team_duels[teammate] = geo.ranked_team_duel_games.get(teammate, []) + user_data.ranked_team_duel_games.get(teammate, []) 
+
+    def _is_party_duel(g) -> bool:
+        return (getattr(g, "context_type", "") or "") == "PartyV2"
+
+    def _split_party_duels(ranked_list, unranked_list):
+        party = []
+        new_ranked = []
+        new_unranked = []
+        for g in list(ranked_list or []):
+            (party if _is_party_duel(g) else new_ranked).append(g)
+        for g in list(unranked_list or []):
+            (party if _is_party_duel(g) else new_unranked).append(g)
+
+        # De-dupe party games by game_id (keep the first occurrence).
+        by_id = {}
+        for g in party:
+            gid = getattr(g, "game_id", None) or ""
+            if gid and gid not in by_id:
+                by_id[gid] = g
+
+        def ts(g):
+            return getattr(g, "start_time", "") or getattr(g, "time", "") or ""
+
+        party = sorted(by_id.values(), key=ts, reverse=True)
+        return new_ranked, new_unranked, party
+
+    ranked_duels, unranked_duels, party_duels = _split_party_duels(ranked_duels, unranked_duels)
+
+    # Merge any previously-saved party duels (best-effort), then write out.
+    party_file = os.path.join(output_dir, f"{username}_party_games.json")
+    if not args.overwrite and os.path.exists(party_file):
+        try:
+            existing_party = []
+            with open(party_file, "r") as f:
+                existing_party = json.load(f) or []
+            # Keep as dicts or objects; serializer handles both. We de-dupe on game_id.
+            combined = []
+            combined.extend(party_duels)
+            if isinstance(existing_party, list):
+                combined.extend(existing_party)
+
+            by_id = {}
+            for g in combined:
+                gid = getattr(g, "game_id", None) if not isinstance(g, dict) else g.get("game_id")
+                gid = gid or ""
+                if gid and gid not in by_id:
+                    by_id[gid] = g
+            party_duels = list(by_id.values())
+        except Exception:
+            pass
         
     # `output_dir` already created above
 
@@ -139,6 +189,10 @@ def fetch_command(args):
     unranked_file = os.path.join(output_dir, f"{username}_unranked_duels.json")
     with open(unranked_file, "w") as f:
         json.dump(unranked_duels, f, default=enum_serializer, indent=2)
+
+    print(f"Saving {len(party_duels)} party duel games")
+    with open(party_file, "w") as f:
+        json.dump(party_duels, f, default=enum_serializer, indent=2)
 
     # Save Team Duel games separately for each teammate
     for teammate, games in ranked_team_duels.items():
