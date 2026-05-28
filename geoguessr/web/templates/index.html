@@ -207,7 +207,7 @@
       <div id="tab-panel-country" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-country">
         <div class="tab-content">
           <h2>Countries (Duels)</h2>
-          <div class="help">Displays rounds in a specific country in which damage was taken</div>
+          <div class="help">Displays rounds in a specific country</div>
           <form method="post" action="/country">
           {% set cf = country.form if country else country_form %}
           <label>Username</label>
@@ -255,7 +255,7 @@
           <input type="number" name="max_games" min="1" value="{{ cf.max_games if cf and cf.max_games is not none else '' }}" />
           <div class="help">Only include N most recent duels for current filters. Available games for current filters: <span class="mono" id="country-available-games">{{ country_available_games if country_available_games is not none else 0 }}</span></div>
 
-          <label>Minimum net damage taken</label>
+          <label>Minimum net damage taken (divided by multiplier)</label>
           <input type="number" name="min_net" min="-5000" max="5000" step="1" value="{{ cf.min_net if cf and cf.min_net is not none else 0 }}" />
           <div class="help">Applies to net damage divided by multipliers (taken / opponent multiplier minus dealt / team multiplier).</div>
 
@@ -293,7 +293,7 @@
           <table>
             <thead>
               <tr>
-                <th>#</th><th>Date</th><th>Duel Type</th><th>Damage taken (divided by multiplier)</th><th>Country correct</th><th>Duel</th><th>Street View</th>
+                <th>#</th><th>Date</th><th>Duel Type</th><th>Net damage taken (divided by multiplier)</th><th>Country correct</th><th>Duel</th><th>Street View</th>
               </tr>
             </thead>
             <tbody>
