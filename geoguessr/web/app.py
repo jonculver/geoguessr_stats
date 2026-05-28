@@ -404,7 +404,7 @@ def create_app() -> FastAPI:
         default_mode: Optional[Literal["moving", "nm", "nmpz"]] = None
         default_max_games: Optional[int] = None
         default_max_days: Optional[int] = None
-        default_min_net: int = 0
+        default_min_net: int = -5000
         default_update_max_games: int = 1000
         default_update_overwrite: bool = False
         default_country = ""
@@ -521,7 +521,7 @@ def create_app() -> FastAPI:
                     "include": "both",
                     "max_games": None,
                     "max_days": None,
-                    "min_net": 0,
+                    "min_net": -5000,
                     "both_correct": False,
                 },
                 "country_available_games": country_available_games,
@@ -608,7 +608,7 @@ def create_app() -> FastAPI:
                     "include": "both",
                     "max_games": None,
                     "max_days": None,
-                    "min_net": 0,
+                    "min_net": -5000,
                 },
                 "country_available_games": country_available_games,
                 "country_options": (
@@ -626,7 +626,7 @@ def create_app() -> FastAPI:
         include: str = Form("both"),
         max_games: Optional[int] = Form(None),
         max_days: Optional[int] = Form(None),
-        min_net: int = Form(0),
+        min_net: int = Form(-5000),
         both_correct: Optional[str] = Form(None),
     ):
         class Args:
@@ -703,7 +703,7 @@ def create_app() -> FastAPI:
         include: str = "both",
         max_games: Optional[int] = None,
         max_days: Optional[int] = None,
-        min_net: int = 0,
+        min_net: int = -5000,
         both_correct: bool = False,
     ):
         class Args:
