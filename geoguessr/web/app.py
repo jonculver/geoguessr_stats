@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Literal, Optional
 
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from geoguessr.__main__ import analyse_command, country_command, fetch_command
@@ -262,6 +262,54 @@ def create_app() -> FastAPI:
     templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
 
     app = FastAPI(title="GeoGuessr Stats")
+
+    def _count_json_list(path: Path) -> int:
+        try:
+            if not path.exists():
+                return 0
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            return len(raw) if isinstance(raw, list) else 0
+        except Exception:
+            return 0
+
+    @app.get("/player-summary")
+    def player_summary(username: str):
+        """Lightweight counts for the Update Data tab."""
+        username = (username or "").strip()
+        if not username:
+            return JSONResponse({"username": "", "counts": {}, "total_games": 0, "total_duels": 0})
+
+        output_dir = repo_root / "output"
+        ranked_duels = _count_json_list(output_dir / f"{username}_ranked_duels.json")
+        unranked_duels = _count_json_list(output_dir / f"{username}_unranked_duels.json")
+        daily_challenge = _count_json_list(output_dir / f"{username}_daily_challenge.json")
+        standard_games = _count_json_list(output_dir / f"{username}_standard_games.json")
+
+        team_total = 0
+        team_teammates = 0
+        if output_dir.exists():
+            for p in output_dir.glob(f"{username}_*_ranked_team_duels.json"):
+                team_teammates += 1
+                team_total += _count_json_list(p)
+
+        total_duels = ranked_duels + unranked_duels + team_total
+        total_games = total_duels + daily_challenge + standard_games
+
+        return JSONResponse(
+            {
+                "username": username,
+                "counts": {
+                    "ranked_duels": ranked_duels,
+                    "unranked_duels": unranked_duels,
+                    "ranked_team_duels": team_total,
+                    "ranked_team_teammates": team_teammates,
+                    "daily_challenge": daily_challenge,
+                    "standard_games": standard_games,
+                },
+                "total_duels": total_duels,
+                "total_games": total_games,
+            }
+        )
 
     @app.get("/team-duel-partners")
     def team_duel_partners(username: str):

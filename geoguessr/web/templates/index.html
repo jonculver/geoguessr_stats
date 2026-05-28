@@ -325,18 +325,19 @@
       <div id="tab-panel-update" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-update">
         <div class="tab-content">
           <h2>Update Data</h2>
-          <div class="help" id="update-progress" style="display:none; margin-top: 10px;">
-            Updating…
-            <progress style="width: 100%; margin-top: 6px;"></progress>
-          </div>
-          <form method="post" action="/update-data">
+          <label>User</label>
           {% set uf = update.form if update else update_form %}
-          <label>Username</label>
-          <select name="username" required>
+          <select id="update-summary-username" name="username" form="update-data-form" required>
             {% for u in usernames %}
               <option value="{{u}}" {% if uf and uf.username==u %}selected{% endif %}>{{u}}</option>
             {% endfor %}
           </select>
+          <div class="help" id="update-user-summary" style="margin-top: 6px;"></div>
+          <div class="help" id="update-progress" style="display:none; margin-top: 10px;">
+            Updating…
+            <progress style="width: 100%; margin-top: 6px;"></progress>
+          </div>
+          <form id="update-data-form" method="post" action="/update-data">
 
           <label>Max games</label>
           <input type="number" name="max_games" min="1" value="{{ uf.max_games if uf and uf.max_games is not none else 1000 }}" />
@@ -557,6 +558,55 @@
         wireTeamPartners('tab-panel-country');
         wireAvailableGames('tab-panel-analyse', 'analyse-available-games');
         wireAvailableGames('tab-panel-country', 'country-available-games');
+
+        (function wireUpdateUserSummary() {
+          var panel = document.getElementById('tab-panel-update');
+          if (!panel) return;
+
+          var userSelect = document.getElementById('update-summary-username');
+          var summaryEl = document.getElementById('update-user-summary');
+          if (!userSelect || !summaryEl) return;
+
+          function renderSummary(data) {
+            summaryEl.innerHTML = '';
+            if (!data || !data.counts) {
+              summaryEl.textContent = '';
+              return;
+            }
+
+            var c = data.counts || {};
+            var lines = [
+              'Ranked duels: ' + (c.ranked_duels || 0),
+              'Unranked duels: ' + (c.unranked_duels || 0),
+              'Ranked team duels: ' + (c.ranked_team_duels || 0) + (c.ranked_team_teammates ? (' (across ' + c.ranked_team_teammates + ' teammates)') : ''),
+              'Daily challenges: ' + (c.daily_challenge || 0),
+              'Standard games: ' + (c.standard_games || 0),
+              'Total duels: ' + (data.total_duels || 0) + ' • Total games: ' + (data.total_games || 0),
+            ];
+
+            lines.forEach(function (t) {
+              var div = document.createElement('div');
+              div.textContent = t;
+              summaryEl.appendChild(div);
+            });
+          }
+
+          function refresh() {
+            var username = userSelect.value || '';
+            if (!username) {
+              summaryEl.textContent = '';
+              return;
+            }
+            summaryEl.textContent = 'Loading…';
+            fetch('/player-summary?username=' + encodeURIComponent(username), { headers: { 'Accept': 'application/json' } })
+              .then(function (r) { return r.ok ? r.json() : null; })
+              .then(function (data) { renderSummary(data); })
+              .catch(function () { summaryEl.textContent = 'Unable to load counts.'; });
+          }
+
+          userSelect.addEventListener('change', refresh);
+          refresh();
+        })();
 
         (function wireUpdateDataProgress() {
           var panel = document.getElementById('tab-panel-update');
