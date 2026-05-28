@@ -42,7 +42,7 @@
         <button class="tab-btn" id="tab-btn-country" type="button" role="tab" aria-controls="tab-panel-country" aria-selected="false" data-tab="country">Countries (Duels)</button>
         <button class="tab-btn" id="tab-btn-classic" type="button" role="tab" aria-controls="tab-panel-classic" aria-selected="false" data-tab="classic">Classic Games Analysis</button>
         <button class="tab-btn" id="tab-btn-classic-country" type="button" role="tab" aria-controls="tab-panel-classic-country" aria-selected="false" data-tab="classic-country">Countries (Classic Games)</button>
-        <button class="tab-btn" id="tab-btn-update" type="button" role="tab" aria-controls="tab-panel-update" aria-selected="false" data-tab="update">Update Data</button>
+        <button class="tab-btn" id="tab-btn-update" type="button" role="tab" aria-controls="tab-panel-update" aria-selected="false" data-tab="update">Data</button>
       </div>
 
       <div id="tab-panel-analyse" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-analyse">
@@ -468,6 +468,20 @@
               <div class="warn">{{ classic_country.stderr }}</div>
             {% endif %}
 
+            {% set selected_cc = (classic_country.form.country|trim|upper) if classic_country.form and classic_country.form.country else '' %}
+            {% set ns = namespace(country_name=selected_cc) %}
+            {% if classic_country_options and classic_country_options|length > 0 %}
+              {% for opt in classic_country_options %}
+                {% if opt.cc == selected_cc %}
+                  {% set ns.country_name = opt.name %}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+
+            {% if ns.country_name %}
+              <h3 style="margin: 16px 0 0 0;">{{ ns.country_name }}</h3>
+            {% endif %}
+
             <table>
               <thead>
                 <tr>
@@ -508,7 +522,7 @@
 
       <div id="tab-panel-update" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-update">
         <div class="tab-content">
-          <h2>Update Data</h2>
+          <h2>Data</h2>
           <label>User</label>
           {% set uf = update.form if update else update_form %}
           <select id="update-summary-username" name="username" form="update-data-form" required>
