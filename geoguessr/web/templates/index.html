@@ -40,6 +40,7 @@
       <div class="tabs" role="tablist" aria-label="GeoGuessr Stats Tabs">
         <button class="tab-btn" id="tab-btn-analyse" type="button" role="tab" aria-controls="tab-panel-analyse" aria-selected="false" data-tab="analyse">Duels Analysis</button>
         <button class="tab-btn" id="tab-btn-country" type="button" role="tab" aria-controls="tab-panel-country" aria-selected="false" data-tab="country">Countries (Duels)</button>
+         <button class="tab-btn" id="tab-btn-classic" type="button" role="tab" aria-controls="tab-panel-classic" aria-selected="false" data-tab="classic">Classic Game Analysis</button>
         <button class="tab-btn" id="tab-btn-update" type="button" role="tab" aria-controls="tab-panel-update" aria-selected="false" data-tab="update">Update Data</button>
       </div>
 
@@ -320,6 +321,81 @@
           </table>
         {% endif %}
         </div>
+
+          <div id="tab-panel-classic" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-classic">
+            <div class="tab-content">
+              <h2>Classic Game Analysis</h2>
+              {% set clf = classic.form if classic else classic_form %}
+
+              <form method="post" action="/classic">
+                <label>User</label>
+                <select name="username" required>
+                  {% for u in usernames %}
+                    <option value="{{u}}" {% if clf and clf.username==u %}selected{% endif %}>{{u}}</option>
+                  {% endfor %}
+                </select>
+
+                <label>Mode</label>
+                <select name="mode">
+                  <option value="" {% if not clf or not clf.mode %}selected{% endif %}>Any</option>
+                  <option value="moving" {% if clf and clf.mode=='moving' %}selected{% endif %}>Moving</option>
+                  <option value="nm" {% if clf and clf.mode=='nm' %}selected{% endif %}>NM</option>
+                  <option value="nmpz" {% if clf and clf.mode=='nmpz' %}selected{% endif %}>NMPZ</option>
+                </select>
+
+                <label>Map</label>
+                {% set classic_map_list = (classic.maps if classic and classic.maps else classic_maps) %}
+                <select name="map_name" id="classic-map">
+                  <option value="" {% if not clf or not clf.map_name %}selected{% endif %}>Any</option>
+                  {% for m in classic_map_list %}
+                    <option value="{{m}}" {% if clf and clf.map_name==m %}selected{% endif %}>{{m}}</option>
+                  {% endfor %}
+                </select>
+
+                <label>Max games</label>
+                <input type="number" name="max_games" min="1" value="{{ clf.max_games if clf and clf.max_games is not none else '' }}" />
+
+                <label>Days</label>
+                <input type="number" name="max_days" min="1" value="{{ clf.max_days if clf and clf.max_days is not none else '' }}" />
+
+                <label>Sort by</label>
+                <select name="sort_by">
+                  <option value="accuracy" {% if not clf or clf.sort_by=='accuracy' %}selected{% endif %}>Classic accuracy</option>
+                  <option value="avg_score" {% if clf and clf.sort_by=='avg_score' %}selected{% endif %}>Average score</option>
+                </select>
+
+                <button type="submit">Run</button>
+              </form>
+
+              {% if classic %}
+                {% if classic.stderr %}
+                  <div class="warn">{{ classic.stderr }}</div>
+                {% endif %}
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Country</th>
+                      <th class="mono">Rounds</th>
+                      <th class="mono">Correct</th>
+                      <th class="mono">Accuracy</th>
+                      <th class="mono">Avg score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for r in classic.rows %}
+                      <tr>
+                        <td>{{ r.name }}</td>
+                        <td class="mono">{{ r.rounds }}</td>
+                        <td class="mono">{{ r.correct }}</td>
+                        <td class="mono">{{ "%.1f"|format(r.accuracy) }}%</td>
+                        <td class="mono">{{ (r.avg_score|round(0))|int }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              {% endif %}
+            </div>
+          </div>
       </div>
 
       <div id="tab-panel-update" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-update">
@@ -528,29 +604,35 @@
         function setActive(tabName) {
           var analyseBtn = document.getElementById('tab-btn-analyse');
           var countryBtn = document.getElementById('tab-btn-country');
+            var classicBtn = document.getElementById('tab-btn-classic');
           var updateBtn = document.getElementById('tab-btn-update');
           var analysePanel = document.getElementById('tab-panel-analyse');
           var countryPanel = document.getElementById('tab-panel-country');
+            var classicPanel = document.getElementById('tab-panel-classic');
           var updatePanel = document.getElementById('tab-panel-update');
 
           var isAnalyse = tabName === 'analyse';
           var isCountry = tabName === 'country';
+            var isClassic = tabName === 'classic';
           var isUpdate = tabName === 'update';
 
           analyseBtn.setAttribute('aria-selected', isAnalyse ? 'true' : 'false');
           countryBtn.setAttribute('aria-selected', isCountry ? 'true' : 'false');
+            classicBtn.setAttribute('aria-selected', isClassic ? 'true' : 'false');
           updateBtn.setAttribute('aria-selected', isUpdate ? 'true' : 'false');
 
           analysePanel.classList.toggle('active', isAnalyse);
           countryPanel.classList.toggle('active', isCountry);
+            classicPanel.classList.toggle('active', isClassic);
           updatePanel.classList.toggle('active', isUpdate);
         }
 
         document.getElementById('tab-btn-analyse').addEventListener('click', function () { setActive('analyse'); });
         document.getElementById('tab-btn-country').addEventListener('click', function () { setActive('country'); });
+          document.getElementById('tab-btn-classic').addEventListener('click', function () { setActive('classic'); });
         document.getElementById('tab-btn-update').addEventListener('click', function () { setActive('update'); });
 
-        var initial = "{{ 'update' if update else ('country' if country else 'analyse') }}";
+          var initial = "{{ 'classic' if classic else ('update' if update else ('country' if country else 'analyse')) }}";
         setActive(initial);
 
         makeTableSortable(document.querySelector('table[data-sortable="region"]'));
@@ -559,6 +641,58 @@
         wireTeamPartners('tab-panel-country');
         wireAvailableGames('tab-panel-analyse', 'analyse-available-games');
         wireAvailableGames('tab-panel-country', 'country-available-games');
+
+          (function wireClassicMaps() {
+            var panel = document.getElementById('tab-panel-classic');
+            if (!panel) return;
+            var usernameEl = panel.querySelector('select[name="username"]');
+            var mapEl = panel.querySelector('select[name="map_name"]');
+            if (!usernameEl || !mapEl) return;
+
+            function rebuildMaps(maps, selectedValue) {
+              var anyOpt = document.createElement('option');
+              anyOpt.value = '';
+              anyOpt.textContent = 'Any';
+
+              mapEl.innerHTML = '';
+              mapEl.appendChild(anyOpt);
+
+              if (Array.isArray(maps) && maps.length) {
+                maps.forEach(function (m) {
+                  var opt = document.createElement('option');
+                  opt.value = m;
+                  opt.textContent = m;
+                  mapEl.appendChild(opt);
+                });
+              }
+
+              var values = Array.prototype.slice.call(mapEl.options).map(function (o) { return o.value; });
+              if (selectedValue && values.indexOf(selectedValue) !== -1) {
+                mapEl.value = selectedValue;
+              } else {
+                mapEl.value = '';
+              }
+            }
+
+            function refresh() {
+              var username = usernameEl.value || '';
+              var selected = mapEl.value;
+              if (!username) {
+                rebuildMaps([], selected);
+                return;
+              }
+              fetch('/classic-maps?username=' + encodeURIComponent(username), { headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (data) {
+                  var maps = (data && Array.isArray(data.maps)) ? data.maps : [];
+                  rebuildMaps(maps, selected);
+                })
+                .catch(function () { rebuildMaps([], selected); });
+            }
+
+            usernameEl.addEventListener('change', refresh);
+            refresh();
+          })();
 
         (function wireUpdateUserSummary() {
           var panel = document.getElementById('tab-panel-update');
