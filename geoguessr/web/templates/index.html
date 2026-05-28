@@ -87,11 +87,11 @@
           <label>Number of games to analyse (optional)</label>
           <input type="number" name="max_games" min="1" value="{{ analyse.form.max_games if analyse and analyse.form.max_games is not none else '' }}" />
           <div class="help">Only include N most recent duels that match the filters specified.</div>
+          <div class="help">Available games for current filters: <span class="mono" id="analyse-available-games">{{ analyse_available_games if analyse_available_games is not none else 0 }}</span></div>
 
           <label>Number of days to analyse (optional)</label>
           <input type="number" name="max_days" min="1" value="{{ analyse.form.max_days if analyse and analyse.form.max_days is not none else '' }}" />
           <div class="help">Only include duels from the last N days.</div>
-          <div class="help">Available games for current filters: <span class="mono" id="analyse-available-games">{{ analyse_available_games if analyse_available_games is not none else 0 }}</span></div>
 
           <label>Minimum Rounds (optional)</label>
           <input type="number" name="min_rounds" min="0" value="{{ analyse.form.min_rounds if analyse and analyse.form.min_rounds is not none else '' }}" />
@@ -255,11 +255,11 @@
           <label>Number of games to analyse (optional)</label>
           <input type="number" name="max_games" min="1" value="{{ cf.max_games if cf and cf.max_games is not none else '' }}" />
           <div class="help">Only include N most recent duels that match the filters specified.</div>
+          <div class="help">Available games for current filters: <span class="mono" id="country-available-games">{{ country_available_games if country_available_games is not none else 0 }}</span></div>
 
           <label>Number of days to analyse (optional)</label>
           <input type="number" name="max_days" min="1" value="{{ cf.max_days if cf and cf.max_days is not none else '' }}" />
           <div class="help">Only include duels from the last N days.</div>
-          <div class="help">Available games for current filters: <span class="mono" id="country-available-games">{{ country_available_games if country_available_games is not none else 0 }}</span></div>
 
           <label style="display:flex; align-items:center; gap:8px; margin-top: 12px;">
             <input type="checkbox" name="both_correct" style="width:auto; margin:0;" {% if cf and cf.both_correct %}checked{% endif %} />
