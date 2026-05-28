@@ -870,8 +870,17 @@ def create_app() -> FastAPI:
             add_duel("Ranked", g)
         for g in getattr(player_data, "unranked_duel_games", []) or []:
             add_duel("Unranked", g)
+        for g in getattr(player_data, "party_duel_games", []) or []:
+            add_duel("Party", g)
 
         team_map = getattr(player_data, "ranked_team_duel_games", {}) or {}
+
+        # Total team duels across all partners (no min-games threshold).
+        for _partner, games_for_partner in team_map.items():
+            for g in list(games_for_partner or []):
+                ts = getattr(g, "start_time", "") or getattr(g, "time", "") or ""
+                add_entry("Total Team Duels", ts)
+
         partners = []
         for partner in sorted([str(k) for k in team_map.keys()], key=lambda s: s.lower()):
             games_for_partner = list(team_map.get(partner, []) or [])
@@ -887,6 +896,10 @@ def create_app() -> FastAPI:
             "Unranked Moving",
             "Unranked NM",
             "Unranked NMPZ",
+            "Party Moving",
+            "Party NM",
+            "Party NMPZ",
+            "Total Team Duels",
         ]
         for partner in partners:
             order.extend(
