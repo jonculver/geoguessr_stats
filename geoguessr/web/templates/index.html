@@ -255,6 +255,9 @@
           <input type="number" name="max_games" min="1" value="{{ cf.max_games if cf and cf.max_games is not none else '' }}" />
           <div class="help">Only include N most recent duels for current filters. Available games for current filters: <span class="mono" id="country-available-games">{{ country_available_games if country_available_games is not none else 0 }}</span></div>
 
+          <label>Minimum net damage taken</label>
+          <input type="number" name="min_net" min="0" step="1" value="{{ cf.min_net if cf and cf.min_net is not none else 0 }}" />
+
           <label>Number of days to analyse (optional)</label>
           <input type="number" name="max_days" min="1" value="{{ cf.max_days if cf and cf.max_days is not none else '' }}" />
           <div class="help">Only include duels from the last N days.</div>

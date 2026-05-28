@@ -143,6 +143,7 @@ def country_command(args):
     include = args.include
     mode = _parse_analyse_mode(args.mode)
     both_correct = bool(getattr(args, "both_correct", False))
+    min_net = float(getattr(args, "min_net", 0) or 0)
 
     if not country or len(country.strip()) != 2:
         print("Country must be a 2-letter country code (e.g. 'US')")
@@ -179,6 +180,10 @@ def country_command(args):
         if max_games <= 0:
             print("--max-games must be a positive integer")
             sys.exit(1)
+
+    if min_net < 0:
+        print("--min-net must be >= 0")
+        sys.exit(1)
 
     def multiplier_fields_look_missing(duel_round) -> bool:
         try:
@@ -342,7 +347,7 @@ def country_command(args):
                 continue
 
             net_damage = net_damage_normalized(duel_round)
-            if net_damage <= 0:
+            if net_damage < min_net:
                 continue
             pano_id = getattr(duel_round, "pano_id", "") or ""
             sv_url = streetview_url_from_pano_id(pano_id)
@@ -370,6 +375,8 @@ def country_command(args):
     print(f"Duel rounds in {target_cc} for {username}")
     if both_correct:
         print("  Filter: both players guessed correct country")
+    if min_net > 0:
+        print(f"  Filter: net damage >= {min_net}")
     print(f"  Rounds: {len(rows)}")
     for _, __, line in rows:
         print(line)
@@ -730,6 +737,12 @@ def main():
     country_parser.add_argument("-mode", "--mode", choices=["moving", "nm", "nmpz"], default=None, help="Game mode filter")
     country_parser.add_argument("--max-days", type=int, default=None, help="Only include games from the last N days")
     country_parser.add_argument("--max-games", type=int, default=None, help="Limit to the most recent N games")
+    country_parser.add_argument(
+        "--min-net",
+        type=float,
+        default=0,
+        help="Minimum net damage taken (normalized); default 0",
+    )
     country_parser.add_argument(
         "--both-correct",
         action="store_true",

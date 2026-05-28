@@ -264,6 +264,7 @@ def create_app() -> FastAPI:
         default_mode: Optional[Literal["moving", "nm", "nmpz"]] = None
         default_max_games: Optional[int] = None
         default_max_days: Optional[int] = None
+        default_min_net: int = 0
         default_country = ""
 
         country_options = (
@@ -306,6 +307,7 @@ def create_app() -> FastAPI:
                     "include": default_include,
                     "max_games": default_max_games,
                     "max_days": default_max_days,
+                    "min_net": default_min_net,
                 },
                 "country_available_games": country_available_games,
                 "country_options": country_options,
@@ -370,6 +372,7 @@ def create_app() -> FastAPI:
                     "include": "both",
                     "max_games": None,
                     "max_days": None,
+                    "min_net": 0,
                 },
                 "country_available_games": country_available_games,
                 "country_options": (
@@ -387,6 +390,7 @@ def create_app() -> FastAPI:
         include: str = Form("both"),
         max_games: Optional[int] = Form(None),
         max_days: Optional[int] = Form(None),
+        min_net: int = Form(0),
         both_correct: Optional[str] = Form(None),
     ):
         class Args:
@@ -399,6 +403,7 @@ def create_app() -> FastAPI:
         args.include = include
         args.max_games = max_games
         args.max_days = max_days
+        args.min_net = min_net
         args.both_correct = both_correct is not None
 
         stdout, stderr = _run_command_capture(country_command, args)
@@ -426,6 +431,7 @@ def create_app() -> FastAPI:
                         "include": include,
                         "max_games": max_games,
                         "max_days": max_days,
+                        "min_net": min_net,
                         "both_correct": both_correct is not None,
                     },
                     "stderr": stderr.strip(),
@@ -438,6 +444,7 @@ def create_app() -> FastAPI:
                     "include": include,
                     "max_games": max_games,
                     "max_days": max_days,
+                    "min_net": min_net,
                     "both_correct": both_correct is not None,
                 },
                 "country_available_games": country_available_games,
@@ -454,6 +461,7 @@ def create_app() -> FastAPI:
         include: str = "both",
         max_games: Optional[int] = None,
         max_days: Optional[int] = None,
+        min_net: int = 0,
         both_correct: bool = False,
     ):
         class Args:
@@ -466,6 +474,7 @@ def create_app() -> FastAPI:
         args.include = include
         args.max_games = max_games
         args.max_days = max_days
+        args.min_net = min_net
         args.both_correct = both_correct
 
         stdout, stderr = _run_command_capture(country_command, args)
@@ -493,6 +502,7 @@ def create_app() -> FastAPI:
                         "include": include,
                         "max_games": max_games,
                         "max_days": max_days,
+                        "min_net": min_net,
                         "both_correct": both_correct,
                     },
                     "stderr": stderr.strip(),
@@ -505,6 +515,7 @@ def create_app() -> FastAPI:
                     "include": include,
                     "max_games": max_games,
                     "max_days": max_days,
+                    "min_net": min_net,
                     "both_correct": both_correct,
                 },
                 "country_available_games": country_available_games,
