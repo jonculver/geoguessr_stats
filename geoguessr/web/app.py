@@ -223,6 +223,297 @@ def _classic_country_rows(
     return rows
 
 
+def _classic_country_options_for_user(
+    username: str,
+    mode: Optional[str],
+    map_name: Optional[str],
+    max_games: Optional[int],
+    max_days: Optional[int],
+) -> list[dict[str, str]]:
+    """Return available country options (panorama countries) for classic games under the given filters."""
+    username = (username or "").strip()
+    if not username:
+        return []
+
+    mode_norm = (mode or "").strip().lower() or None
+    map_norm = (map_name or "").strip() or None
+    if map_norm == "any":
+        map_norm = None
+
+    player_data = PlayerData(username)
+    games = list(getattr(player_data, "standard_games", []) or [])
+    games.sort(
+        key=lambda g: (
+            _parse_iso_datetime(getattr(g, "time", "") or "")
+            or datetime.min.replace(tzinfo=timezone.utc)
+        ),
+        reverse=True,
+    )
+
+    if max_days is not None:
+        if max_days <= 0:
+            return []
+        cutoff = datetime.now(timezone.utc) - timedelta(days=max_days)
+        games = [
+            g
+            for g in games
+            if (
+                _parse_iso_datetime(getattr(g, "time", "") or "")
+                or datetime.min.replace(tzinfo=timezone.utc)
+            )
+            >= cutoff
+        ]
+
+    if max_games is not None:
+        if max_games <= 0:
+            return []
+        games = games[:max_games]
+
+    ccs: set[str] = set()
+    for g in games:
+        raw = getattr(g, "raw", {}) or {}
+        if not isinstance(raw, dict):
+            continue
+        if (raw.get("state") or getattr(g, "state", "")) != "finished":
+            continue
+        if mode_norm and _classic_mode_label(raw) != mode_norm:
+            continue
+        if map_norm:
+            gn = (raw.get("mapName") or getattr(g, "map_name", "") or "").strip()
+            if gn != map_norm:
+                continue
+        rounds = raw.get("rounds")
+        if not isinstance(rounds, list):
+            continue
+        for r in rounds:
+            if not isinstance(r, dict):
+                continue
+            cc = str(r.get("streakLocationCode") or "").upper()
+            if cc:
+                ccs.add(cc)
+
+    out: list[dict[str, str]] = []
+    for cc in sorted(ccs, key=lambda s: s.upper()):
+        out.append({"cc": cc, "name": country_code_to_name(cc) or cc})
+    return out
+
+
+def _classic_country_round_rows(
+    username: str,
+    country: str,
+    mode: Optional[str],
+    map_name: Optional[str],
+    max_games: Optional[int],
+    max_days: Optional[int],
+) -> list[dict[str, object]]:
+    """Return per-round rows for classic games where the panorama country matches `country`."""
+    username = (username or "").strip()
+    if not username:
+        return []
+
+    target_cc = (country or "").strip().upper()
+    if not target_cc or len(target_cc) != 2:
+        return []
+
+    mode_norm = (mode or "").strip().lower() or None
+    map_norm = (map_name or "").strip() or None
+    if map_norm == "any":
+        map_norm = None
+
+    player_data = PlayerData(username)
+    games = list(getattr(player_data, "standard_games", []) or [])
+    games.sort(
+        key=lambda g: (
+            _parse_iso_datetime(getattr(g, "time", "") or "")
+            or datetime.min.replace(tzinfo=timezone.utc)
+        ),
+        reverse=True,
+    )
+
+    if max_days is not None:
+        if max_days <= 0:
+            return []
+        cutoff = datetime.now(timezone.utc) - timedelta(days=max_days)
+        games = [
+            g
+            for g in games
+            if (
+                _parse_iso_datetime(getattr(g, "time", "") or "")
+                or datetime.min.replace(tzinfo=timezone.utc)
+            )
+            >= cutoff
+        ]
+
+    if max_games is not None:
+        if max_games <= 0:
+            return []
+        games = games[:max_games]
+
+    geo_cache: dict[tuple[float, float], str] = {}
+
+    def decode_pano_id(pano_id: str) -> str:
+        """Decode stored pano_id.
+
+        Our JSON often stores pano IDs hex-encoded; decode to UTF-8 when it looks like hex.
+        """
+        if not pano_id:
+            return ""
+        s = pano_id.strip()
+        if len(s) % 2 != 0:
+            return s
+        try:
+            int(s, 16)
+        except Exception:
+            return s
+        try:
+            return bytes.fromhex(s).decode("utf-8")
+        except Exception:
+            return s
+
+    def streetview_url(pano_id: object, lat: object, lng: object) -> str:
+        try:
+            pano = decode_pano_id(str(pano_id or ""))
+        except Exception:
+            pano = ""
+        if pano:
+            return f"https://www.google.com/maps/@?api=1&map_action=pano&pano={pano}"
+        try:
+            lat_f = float(lat)
+            lng_f = float(lng)
+        except Exception:
+            return ""
+        return f"https://www.google.com/maps/@?api=1&map_action=pano&viewpoint={lat_f},{lng_f}"
+
+    def guess_cc(lat: object, lng: object) -> str:
+        if _rg is None:
+            return ""
+        try:
+            lat_f = float(lat)
+            lng_f = float(lng)
+        except Exception:
+            return ""
+        key = (round(lat_f, 5), round(lng_f, 5))
+        if key in geo_cache:
+            return geo_cache[key]
+        try:
+            res = _rg.search((lat_f, lng_f), mode=1)
+            cc = ""
+            if isinstance(res, list) and res and isinstance(res[0], dict):
+                cc = str(res[0].get("cc") or "").upper()
+            geo_cache[key] = cc
+            return cc
+        except Exception:
+            geo_cache[key] = ""
+            return ""
+
+    rows: list[dict[str, object]] = []
+    for g in games:
+        raw = getattr(g, "raw", {}) or {}
+        if not isinstance(raw, dict):
+            continue
+        if (raw.get("state") or getattr(g, "state", "")) != "finished":
+            continue
+
+        if mode_norm and _classic_mode_label(raw) != mode_norm:
+            continue
+
+        if map_norm:
+            gn = (raw.get("mapName") or getattr(g, "map_name", "") or "").strip()
+            if gn != map_norm:
+                continue
+
+        rounds = raw.get("rounds")
+        guesses = raw.get("guesses")
+        if not isinstance(guesses, list):
+            player = raw.get("player")
+            if isinstance(player, dict):
+                guesses = player.get("guesses")
+
+        if not isinstance(rounds, list) or not isinstance(guesses, list):
+            continue
+        n = min(len(rounds), len(guesses))
+
+        dt = _parse_iso_datetime(getattr(g, "time", "") or "")
+        date = dt.date().isoformat() if dt else ""
+        mode_label = _classic_mode_label(raw)
+        token = (getattr(g, "game_token", "") or "").strip()
+        game_url = f"https://www.geoguessr.com/game/{token}" if token else ""
+
+        ts = dt.timestamp() if dt else float("-inf")
+
+        for i in range(n):
+            r = rounds[i]
+            gu = guesses[i]
+            if not isinstance(r, dict) or not isinstance(gu, dict):
+                continue
+            correct = str(r.get("streakLocationCode") or "").upper()
+            if correct != target_cc:
+                continue
+
+            sv_url = streetview_url(r.get("panoId"), r.get("lat"), r.get("lng"))
+
+            g_cc = guess_cc(gu.get("lat"), gu.get("lng"))
+            if not g_cc:
+                correct_flag = "?"
+            else:
+                correct_flag = "Y" if g_cc == correct else "N"
+
+            score: Optional[float]
+            try:
+                raw_score = gu.get("roundScoreInPoints")
+                if raw_score is None:
+                    raw_score = gu.get("score")
+                score = float(raw_score) if raw_score is not None else None
+            except Exception:
+                score = None
+
+            distance_km = None
+            dist_m = gu.get("distanceInMeters")
+            if dist_m is None:
+                dist_m = gu.get("distance")
+            try:
+                if dist_m is not None:
+                    distance_km = float(dist_m) / 1000.0
+            except Exception:
+                distance_km = None
+
+            rows.append(
+                {
+                    "date": date,
+                    "mode": mode_label,
+                    "score": score,
+                    "correct": correct_flag,
+                    "distance_km": distance_km,
+                    "round": i + 1,
+                    "game_url": game_url,
+                    "sv_url": sv_url,
+                    "_ts": ts,
+                }
+            )
+
+    # Lowest score first; unknown scores last.
+    def sort_key(r: dict[str, object]):
+        sc = r.get("score")
+        try:
+            score_val = float(sc) if sc is not None else float("inf")
+        except Exception:
+            score_val = float("inf")
+        try:
+            ts_val = float(r.get("_ts") or float("-inf"))
+        except Exception:
+            ts_val = float("-inf")
+        try:
+            round_val = int(r.get("round") or 0)
+        except Exception:
+            round_val = 0
+        return (score_val, ts_val, round_val)
+
+    rows.sort(key=sort_key)
+    for r in rows:
+        r.pop("_ts", None)
+    return rows
+
+
 def _load_usernames(repo_root: Path) -> list[str]:
     try:
         users_path = repo_root / "users.json"
@@ -651,6 +942,16 @@ def create_app() -> FastAPI:
         analyse_available_games = _available_games_count(username, "both", None, None)
         country_available_games = analyse_available_games
 
+        # Default classic-country form state (so the template always has something).
+        classic_country_form = {
+            "username": username,
+            "country": "",
+            "mode": None,
+            "map_name": "",
+            "max_games": None,
+            "max_days": None,
+        }
+
         return templates.TemplateResponse(
             "index.html",
             {
@@ -662,6 +963,11 @@ def create_app() -> FastAPI:
                 "analyse_available_games": analyse_available_games,
                 "country": None,
                 "classic": None,
+                "classic_country": None,
+                "classic_country_form": classic_country_form,
+                "classic_country_options": (
+                    _classic_country_options_for_user(username, None, "", None, None) if username else []
+                ),
                 "classic_form": {
                     "username": username,
                     "mode": None,
@@ -716,6 +1022,94 @@ def create_app() -> FastAPI:
             },
         )
 
+    @app.post("/classic-country", response_class=HTMLResponse)
+    def run_classic_country(
+        request: Request,
+        username: str = Form(...),
+        country: str = Form(...),
+        mode: Optional[Literal["moving", "nm", "nmpz"]] = Form(None),
+        map_name: str = Form(""),
+        max_games: Optional[int] = Form(None),
+        max_days: Optional[int] = Form(None),
+    ):
+        rows: list[dict[str, object]] = []
+        stderr = ""
+        try:
+            rows = _classic_country_round_rows(username, country, mode, map_name, max_games, max_days)
+        except Exception as e:
+            stderr = str(e)
+
+        analyse_available_games = _available_games_count(username, "both", None, None)
+        country_available_games = analyse_available_games
+
+        classic_maps = _classic_maps_for_user(username) if username else []
+        classic_country_options = (
+            _classic_country_options_for_user(username, mode, map_name, max_games, max_days) if username else []
+        )
+
+        return templates.TemplateResponse(
+            "index.html",
+            {
+                "request": request,
+                "usernames": _load_usernames(repo_root),
+                "analyse_teammates": _team_duel_teammates_for_user(repo_root, username) if username else [],
+                "country_teammates": _team_duel_teammates_for_user(repo_root, username) if username else [],
+                "analyse": None,
+                "analyse_available_games": analyse_available_games,
+                "country": None,
+                "country_form": {
+                    "username": username,
+                    "country": "",
+                    "mode": None,
+                    "include": "both",
+                    "max_games": None,
+                    "max_days": None,
+                    "min_net": -5000,
+                },
+                "country_available_games": country_available_games,
+                "country_options": (_country_options_for_user(username, "both", None, None, None) if username else []),
+                "classic": None,
+                "classic_form": {
+                    "username": username,
+                    "mode": None,
+                    "map_name": "",
+                    "max_games": None,
+                    "max_days": None,
+                    "min_rounds": None,
+                    "sort_by": "accuracy",
+                },
+                "classic_maps": classic_maps,
+                "classic_country": {
+                    "form": {
+                        "username": username,
+                        "country": country,
+                        "mode": mode,
+                        "map_name": map_name,
+                        "max_games": max_games,
+                        "max_days": max_days,
+                    },
+                    "stderr": stderr,
+                    "rows": rows,
+                    "maps": classic_maps,
+                },
+                "classic_country_form": {
+                    "username": username,
+                    "country": country,
+                    "mode": mode,
+                    "map_name": map_name,
+                    "max_games": max_games,
+                    "max_days": max_days,
+                },
+                "classic_country_options": classic_country_options,
+                "update": None,
+                "update_form": {
+                    "username": username,
+                    "max_games": 1000,
+                    "overwrite": False,
+                },
+            },
+        )
+
     @app.get("/available-games")
     def available_games(
         username: str,
@@ -744,6 +1138,8 @@ def create_app() -> FastAPI:
         default_classic_min_rounds: Optional[int] = None
         default_classic_sort_by: str = "accuracy"
 
+        default_classic_country: str = ""
+
         country_options = (
             _country_options_for_user(
                 default_username,
@@ -764,6 +1160,18 @@ def create_app() -> FastAPI:
         country_available_games = analyse_available_games
 
         classic_maps = _classic_maps_for_user(default_username) if default_username else []
+
+        classic_country_options = (
+            _classic_country_options_for_user(
+                default_username,
+                default_classic_mode,
+                default_classic_map_name,
+                default_max_games,
+                default_max_days,
+            )
+            if default_username
+            else []
+        )
 
         return templates.TemplateResponse(
             "index.html",
@@ -796,6 +1204,16 @@ def create_app() -> FastAPI:
                     "sort_by": default_classic_sort_by,
                 },
                 "classic_maps": classic_maps,
+                "classic_country": None,
+                "classic_country_form": {
+                    "username": default_username,
+                    "country": default_classic_country,
+                    "mode": default_classic_mode,
+                    "map_name": default_classic_map_name,
+                    "max_games": default_max_games,
+                    "max_days": default_max_days,
+                },
+                "classic_country_options": classic_country_options,
                 "country_form": {
                     "username": default_username,
                     "country": default_country,
@@ -852,6 +1270,11 @@ def create_app() -> FastAPI:
         analyse_available_games = _available_games_count(username, "both", None, None)
         country_available_games = analyse_available_games
 
+        classic_maps = _classic_maps_for_user(username) if username else []
+        classic_country_options = (
+            _classic_country_options_for_user(username, None, "", None, None) if username else []
+        )
+
         return templates.TemplateResponse(
             "index.html",
             {
@@ -862,6 +1285,27 @@ def create_app() -> FastAPI:
                 "analyse": None,
                 "analyse_available_games": analyse_available_games,
                 "country": None,
+                "classic": None,
+                "classic_form": {
+                    "username": username,
+                    "mode": None,
+                    "map_name": "",
+                    "max_games": None,
+                    "max_days": None,
+                    "min_rounds": None,
+                    "sort_by": "accuracy",
+                },
+                "classic_maps": classic_maps,
+                "classic_country": None,
+                "classic_country_form": {
+                    "username": username,
+                    "country": "",
+                    "mode": None,
+                    "map_name": "",
+                    "max_games": None,
+                    "max_days": None,
+                },
+                "classic_country_options": classic_country_options,
                 "country_form": {
                     "username": username,
                     "country": "",
@@ -921,6 +1365,11 @@ def create_app() -> FastAPI:
         analyse_available_games = _available_games_count(username, include, mode, max_days)
         country_available_games = _available_games_count(username, "both", None, None)
 
+        classic_maps = _classic_maps_for_user(username) if username else []
+        classic_country_options = (
+            _classic_country_options_for_user(username, None, "", None, None) if username else []
+        )
+
         return templates.TemplateResponse(
             "index.html",
             {
@@ -944,6 +1393,16 @@ def create_app() -> FastAPI:
                 "analyse_available_games": analyse_available_games,
                 "country": None,
                 "classic": None,
+                "classic_country": None,
+                "classic_country_form": {
+                    "username": username,
+                    "country": "",
+                    "mode": None,
+                    "map_name": "",
+                    "max_games": None,
+                    "max_days": None,
+                },
+                "classic_country_options": classic_country_options,
                 "classic_form": {
                     "username": username,
                     "mode": None,
@@ -952,7 +1411,7 @@ def create_app() -> FastAPI:
                     "max_days": None,
                     "sort_by": "accuracy",
                 },
-                "classic_maps": _classic_maps_for_user(username) if username else [],
+                "classic_maps": classic_maps,
                 "update": None,
                 "update_form": {
                     "username": username,
@@ -1008,6 +1467,11 @@ def create_app() -> FastAPI:
         analyse_available_games = _available_games_count(username, "both", None, None)
         country_available_games = _available_games_count(username, include, mode, max_days)
 
+        classic_maps = _classic_maps_for_user(username) if username else []
+        classic_country_options = (
+            _classic_country_options_for_user(username, None, "", None, None) if username else []
+        )
+
         return templates.TemplateResponse(
             "index.html",
             {
@@ -1032,6 +1496,16 @@ def create_app() -> FastAPI:
                     "rows": rows,
                 },
                 "classic": None,
+                "classic_country": None,
+                "classic_country_form": {
+                    "username": username,
+                    "country": "",
+                    "mode": None,
+                    "map_name": "",
+                    "max_games": None,
+                    "max_days": None,
+                },
+                "classic_country_options": classic_country_options,
                 "classic_form": {
                     "username": username,
                     "mode": None,
@@ -1040,7 +1514,7 @@ def create_app() -> FastAPI:
                     "max_days": None,
                     "sort_by": "accuracy",
                 },
-                "classic_maps": _classic_maps_for_user(username) if username else [],
+                "classic_maps": classic_maps,
                 "update": None,
                 "update_form": {
                     "username": username,
@@ -1095,6 +1569,11 @@ def create_app() -> FastAPI:
         analyse_available_games = _available_games_count(username, "both", None, None)
         country_available_games = _available_games_count(username, include, mode, max_days)
 
+        classic_maps = _classic_maps_for_user(username) if username else []
+        classic_country_options = (
+            _classic_country_options_for_user(username, None, "", None, None) if username else []
+        )
+
         return templates.TemplateResponse(
             "index.html",
             {
@@ -1119,6 +1598,16 @@ def create_app() -> FastAPI:
                     "rows": rows,
                 },
                 "classic": None,
+                "classic_country": None,
+                "classic_country_form": {
+                    "username": username,
+                    "country": "",
+                    "mode": None,
+                    "map_name": "",
+                    "max_games": None,
+                    "max_days": None,
+                },
+                "classic_country_options": classic_country_options,
                 "classic_form": {
                     "username": username,
                     "mode": None,
@@ -1127,7 +1616,7 @@ def create_app() -> FastAPI:
                     "max_days": None,
                     "sort_by": "accuracy",
                 },
-                "classic_maps": _classic_maps_for_user(username) if username else [],
+                "classic_maps": classic_maps,
                 "update": None,
                 "update_form": {
                     "username": username,
