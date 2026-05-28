@@ -523,8 +523,6 @@
       <div id="tab-panel-update" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-update">
         <div class="tab-content">
           <h2>Data</h2>
-
-          <h3 style="margin: 16px 0 0 0;">Update Data</h3>
           <label>User</label>
           {% set uf = update.form if update else update_form %}
           <select id="update-summary-username" name="username" form="update-data-form" required>
@@ -532,7 +530,11 @@
               <option value="{{u}}" {% if uf and uf.username==u %}selected{% endif %}>{{u}}</option>
             {% endfor %}
           </select>
+
+          <h3 style="margin: 16px 0 0 0;">Saved Data</h3>
           <div class="help" id="update-user-summary" style="margin-top: 6px;"></div>
+
+          <h3 style="margin: 16px 0 0 0;">Update Data</h3>
           <div class="help" id="update-progress" style="display:none; margin-top: 10px;">
             Updating…
             <progress style="width: 100%; margin-top: 6px;"></progress>
