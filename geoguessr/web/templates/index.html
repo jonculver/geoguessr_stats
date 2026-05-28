@@ -567,6 +567,31 @@
           var summaryEl = document.getElementById('update-user-summary');
           if (!userSelect || !summaryEl) return;
 
+          function formatOrdinal(n) {
+            var mod100 = n % 100;
+            if (mod100 >= 11 && mod100 <= 13) return String(n) + 'th';
+            switch (n % 10) {
+              case 1: return String(n) + 'st';
+              case 2: return String(n) + 'nd';
+              case 3: return String(n) + 'rd';
+              default: return String(n) + 'th';
+            }
+          }
+
+          function formatIsoDate(iso) {
+            if (!iso || typeof iso !== 'string') return '';
+            var m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (!m) return '';
+
+            var year = parseInt(m[1], 10);
+            var month = parseInt(m[2], 10);
+            var day = parseInt(m[3], 10);
+            if (!year || month < 1 || month > 12 || day < 1 || day > 31) return '';
+
+            var monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            return formatOrdinal(day) + ' ' + monthNames[month - 1] + ' ' + String(year);
+          }
+
           function renderSummary(data) {
             summaryEl.innerHTML = '';
             var rows = (data && Array.isArray(data.rows)) ? data.rows : [];
@@ -600,10 +625,11 @@
               tr.appendChild(tdCount);
 
               var tdRange = document.createElement('td');
-              tdRange.className = 'mono';
               var from = r.from || '';
               var to = r.to || '';
-              tdRange.textContent = (from && to) ? (from + ' – ' + to) : '';
+              var fromLabel = formatIsoDate(from);
+              var toLabel = formatIsoDate(to);
+              tdRange.textContent = (fromLabel && toLabel) ? (fromLabel + ' – ' + toLabel) : '';
               tr.appendChild(tdRange);
 
               tbody.appendChild(tr);
