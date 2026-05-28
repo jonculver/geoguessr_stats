@@ -320,9 +320,9 @@ def create_app() -> FastAPI:
 
         player_data = PlayerData(username)
         for g in getattr(player_data, "daily_challenge_games", []) or []:
-            add_entry("Daily Challenge", getattr(g, "time", "") or "")
+            add_entry("Daily Challenge Games", getattr(g, "time", "") or "")
         for g in getattr(player_data, "standard_games", []) or []:
-            add_entry("Classic", getattr(g, "time", "") or "")
+            add_entry("Classic Games", getattr(g, "time", "") or "")
         for g in getattr(player_data, "ranked_duel_games", []) or []:
             add_duel("Ranked", g)
         for g in getattr(player_data, "unranked_duel_games", []) or []:
@@ -334,8 +334,6 @@ def create_app() -> FastAPI:
                 add_duel("Team", g, partner=partner)
 
         order: list[str] = [
-            "Daily Challenge",
-            "Classic",
             "Ranked Moving",
             "Ranked NM",
             "Ranked NMPZ",
@@ -351,6 +349,9 @@ def create_app() -> FastAPI:
                     f"Team ({partner}) NMPZ",
                 ]
             )
+
+        # Non-duel game types at the bottom.
+        order.extend(["Classic Games", "Daily Challenge Games"])
 
         rows: list[dict[str, object]] = []
         for label in order:
