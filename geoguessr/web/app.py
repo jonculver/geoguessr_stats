@@ -75,17 +75,27 @@ def _team_duel_teammates_for_user(repo_root: Path, username: str) -> list[str]:
         if not teammate:
             continue
 
-        game_count = 0
+        max_mode_count = 0
         try:
             raw = json.loads(p.read_text(encoding="utf-8"))
-            if isinstance(raw, list):
-                game_count = len(raw)
-            elif isinstance(raw, dict) and isinstance(raw.get("games"), list):
-                game_count = len(raw["games"])
-        except Exception:
-            game_count = 0
+            games = raw
+            if isinstance(raw, dict) and isinstance(raw.get("games"), list):
+                games = raw.get("games")
 
-        if game_count >= TEAM_DUEL_PARTNER_MIN_GAMES:
+            if isinstance(games, list):
+                mode_counts: dict[str, int] = {}
+                for g in games:
+                    if not isinstance(g, dict):
+                        continue
+                    mode = str(g.get("mode") or "").strip().lower()
+                    if not mode:
+                        continue
+                    mode_counts[mode] = mode_counts.get(mode, 0) + 1
+                max_mode_count = max(mode_counts.values(), default=0)
+        except Exception:
+            max_mode_count = 0
+
+        if max_mode_count >= TEAM_DUEL_PARTNER_MIN_GAMES:
             teammates.add(teammate)
     return sorted(teammates, key=lambda s: s.lower())
 
@@ -345,9 +355,13 @@ def create_app() -> FastAPI:
             add_duel("Unranked", g)
 
         team_map = getattr(player_data, "ranked_team_duel_games", {}) or {}
+        partners = []
         for partner in sorted([str(k) for k in team_map.keys()], key=lambda s: s.lower()):
-            for g in team_map.get(partner, []) or []:
-                add_duel("Team", g, partner=partner)
+            games_for_partner = list(team_map.get(partner, []) or [])
+            if len(games_for_partner) >= TEAM_DUEL_PARTNER_MIN_GAMES:
+                partners.append(partner)
+                for g in games_for_partner:
+                    add_duel("Team", g, partner=partner)
 
         order: list[str] = [
             "Ranked Moving",
@@ -357,7 +371,7 @@ def create_app() -> FastAPI:
             "Unranked NM",
             "Unranked NMPZ",
         ]
-        for partner in sorted([str(k) for k in team_map.keys()], key=lambda s: s.lower()):
+        for partner in partners:
             order.extend(
                 [
                     f"Team ({partner}) Moving",
@@ -377,6 +391,8 @@ def create_app() -> FastAPI:
             count = int(b.get("count", 0) or 0)
             if count <= 0:
                 continue
+            if label.startswith("Team (") and count < TEAM_DUEL_PARTNER_MIN_GAMES:
+                continue
             rows.append(
                 {
                     "label": label,
@@ -393,6 +409,8 @@ def create_app() -> FastAPI:
                 continue
             count = int(b.get("count", 0) or 0)
             if count <= 0:
+                continue
+            if label.startswith("Team (") and count < TEAM_DUEL_PARTNER_MIN_GAMES:
                 continue
             rows.append({"label": label, "count": count, "from": b.get("min"), "to": b.get("max")})
 
