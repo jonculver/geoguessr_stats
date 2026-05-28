@@ -2,6 +2,7 @@
 
 import requests
 import json
+import time
 from tqdm import tqdm
 from dataclasses import fields
 from typing import Optional
@@ -50,11 +51,36 @@ class Geoguessr:
         self._save_username_map()
         return
 
-    def _make_request(self, endpoint) -> None:
-        response = requests.request("GET", endpoint, headers=self._get_headers())
-        if response.ok:
-            return response.json()
-        return response.ok
+    def _make_request(self, endpoint: str, *, timeout: tuple[float, float] = (20.0, 60.0), max_retries: int = 3):
+        """GET a GeoGuessr API endpoint and return parsed JSON.
+
+        This is best-effort: network timeouts / transient server errors should not crash a full fetch.
+        Returns a JSON object (usually dict) on success, otherwise None.
+        """
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                response = requests.request("GET", endpoint, headers=self._get_headers(), timeout=timeout)
+
+                # Retry on transient server issues / rate limiting.
+                if response.status_code == 429 or response.status_code >= 500:
+                    if attempt < max_retries:
+                        time.sleep(0.5 * attempt)
+                        continue
+                    return None
+
+                if not response.ok:
+                    return None
+
+                try:
+                    return response.json()
+                except Exception:
+                    return None
+            except requests.exceptions.RequestException:
+                if attempt < max_retries:
+                    time.sleep(0.5 * attempt)
+                    continue
+                return None
 
     def _get_headers(self) -> dict:
         cookie = self.ncfa_cookie
@@ -72,7 +98,11 @@ class Geoguessr:
     def _get_userID(self) -> str:
         url = "https://www.geoguessr.com/api/v3/profiles"
         raw_data = self._make_request(url)
+        if not isinstance(raw_data, dict):
+            return ""
         user = raw_data.get('user', {})
+        if not isinstance(user, dict):
+            return ""
         return user.get('id', "")        
     
     def _query_game_data(self, game_type: str, game_id: str) -> Optional[GeoguessrDuelGame]:
@@ -153,6 +183,8 @@ class Geoguessr:
         """
         url = f"https://www.geoguessr.com/api/v4/feed/private?paginationToken={pagination_token}"
         raw_data = self._make_request(url)
+        if not isinstance(raw_data, dict):
+            return games, None
         games = {
             GameType.DAILY_CHALLENGE: [],
             GameType.STANDARD: [],
@@ -160,11 +192,17 @@ class Geoguessr:
             GameType.UNRANKED_DUELS: [],
             GameType.RANKED_TEAM_DUELS: [],
         }
-        entries = raw_data['entries']
+        entries = raw_data.get('entries') or []
         token = raw_data.get('paginationToken')
         for item in entries:
             time = item.get('time', "")
-            data = json.loads(item['payload'])
+            payload_str = item.get('payload')
+            if not payload_str:
+                continue
+            try:
+                data = json.loads(payload_str)
+            except Exception:
+                continue
             if isinstance(data, dict):
                 # A single instance where _this_ is the payload
                 self._extract_game_data(games, time, data)
