@@ -294,16 +294,14 @@ def create_app() -> FastAPI:
                 return "NMPZ"
             return "?"
 
-        # bucket_key -> {count, min_date, max_date}
-        buckets: dict[tuple[str, str], dict[str, object]] = {}
+        # label -> {count, min_date, max_date}
+        buckets: dict[str, dict[str, object]] = {}
 
-        def add_game(kind: str, game) -> None:
-            ml = mode_label(getattr(game, "mode", None))
-            key = (kind, ml)
-            b = buckets.setdefault(key, {"count": 0, "min": None, "max": None})
+        def add_entry(label: str, ts: str) -> None:
+            if not label:
+                return
+            b = buckets.setdefault(label, {"count": 0, "min": None, "max": None})
             b["count"] = int(b.get("count", 0) or 0) + 1
-
-            ts = getattr(game, "start_time", "") or getattr(game, "time", "") or ""
             d = date_only(ts)
             if not d:
                 return
@@ -314,30 +312,49 @@ def create_app() -> FastAPI:
             if cur_max is None or d > cur_max:  # type: ignore[operator]
                 b["max"] = d
 
-        player_data = PlayerData(username)
-        for g in getattr(player_data, "ranked_duel_games", []) or []:
-            add_game("Ranked", g)
-        for g in getattr(player_data, "unranked_duel_games", []) or []:
-            add_game("Unranked", g)
-        for games in (getattr(player_data, "ranked_team_duel_games", {}) or {}).values():
-            for g in games or []:
-                add_game("Team", g)
+        def add_duel(kind: str, game, partner: Optional[str] = None) -> None:
+            ml = mode_label(getattr(game, "mode", None))
+            label = f"{kind} {ml}" if not partner else f"{kind} ({partner}) {ml}"
+            ts = getattr(game, "start_time", "") or getattr(game, "time", "") or ""
+            add_entry(label, ts)
 
-        order = [
-            ("Ranked", "Moving"),
-            ("Ranked", "NM"),
-            ("Ranked", "NMPZ"),
-            ("Unranked", "Moving"),
-            ("Unranked", "NM"),
-            ("Unranked", "NMPZ"),
-            ("Team", "Moving"),
-            ("Team", "NM"),
-            ("Team", "NMPZ"),
+        player_data = PlayerData(username)
+        for g in getattr(player_data, "daily_challenge_games", []) or []:
+            add_entry("Daily Challenge", getattr(g, "time", "") or "")
+        for g in getattr(player_data, "standard_games", []) or []:
+            add_entry("Classic", getattr(g, "time", "") or "")
+        for g in getattr(player_data, "ranked_duel_games", []) or []:
+            add_duel("Ranked", g)
+        for g in getattr(player_data, "unranked_duel_games", []) or []:
+            add_duel("Unranked", g)
+
+        team_map = getattr(player_data, "ranked_team_duel_games", {}) or {}
+        for partner in sorted([str(k) for k in team_map.keys()], key=lambda s: s.lower()):
+            for g in team_map.get(partner, []) or []:
+                add_duel("Team", g, partner=partner)
+
+        order: list[str] = [
+            "Daily Challenge",
+            "Classic",
+            "Ranked Moving",
+            "Ranked NM",
+            "Ranked NMPZ",
+            "Unranked Moving",
+            "Unranked NM",
+            "Unranked NMPZ",
         ]
+        for partner in sorted([str(k) for k in team_map.keys()], key=lambda s: s.lower()):
+            order.extend(
+                [
+                    f"Team ({partner}) Moving",
+                    f"Team ({partner}) NM",
+                    f"Team ({partner}) NMPZ",
+                ]
+            )
 
         rows: list[dict[str, object]] = []
-        for kind, ml in order:
-            b = buckets.get((kind, ml))
+        for label in order:
+            b = buckets.get(label)
             if not b:
                 continue
             count = int(b.get("count", 0) or 0)
@@ -345,12 +362,22 @@ def create_app() -> FastAPI:
                 continue
             rows.append(
                 {
-                    "label": f"{kind} {ml}",
+                    "label": label,
                     "count": count,
                     "from": b.get("min"),
                     "to": b.get("max"),
                 }
             )
+
+        # Include any unexpected labels (future-proofing) in stable order.
+        for label in sorted([k for k in buckets.keys() if k not in set(order)], key=lambda s: s.lower()):
+            b = buckets.get(label)
+            if not b:
+                continue
+            count = int(b.get("count", 0) or 0)
+            if count <= 0:
+                continue
+            rows.append({"label": label, "count": count, "from": b.get("min"), "to": b.get("max")})
 
         return JSONResponse({"username": username, "rows": rows})
 
