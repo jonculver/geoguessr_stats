@@ -523,6 +523,8 @@
       <div id="tab-panel-update" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-update">
         <div class="tab-content">
           <h2>Data</h2>
+
+          <h3 style="margin: 16px 0 0 0;">Update Data</h3>
           <label>User</label>
           {% set uf = update.form if update else update_form %}
           <select id="update-summary-username" name="username" form="update-data-form" required>
@@ -540,11 +542,6 @@
 
           <label>Max games</label>
           <input type="number" name="max_games" min="1" value="{{ uf.max_games if uf and uf.max_games is not none else 1000 }}" />
-
-          <label style="display:flex; align-items:center; gap:8px; margin-top: 12px;">
-            <input type="checkbox" name="overwrite" style="width:auto; margin:0;" {% if uf and uf.overwrite %}checked{% endif %} />
-            Overwrite existing data
-          </label>
 
           <button type="submit">Update Data</button>
           </form>
