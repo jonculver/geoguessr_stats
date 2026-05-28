@@ -40,7 +40,7 @@
       <div class="tabs" role="tablist" aria-label="GeoGuessr Stats Tabs">
         <button class="tab-btn" id="tab-btn-analyse" type="button" role="tab" aria-controls="tab-panel-analyse" aria-selected="false" data-tab="analyse">Duels Analysis</button>
         <button class="tab-btn" id="tab-btn-country" type="button" role="tab" aria-controls="tab-panel-country" aria-selected="false" data-tab="country">Countries (Duels)</button>
-         <button class="tab-btn" id="tab-btn-classic" type="button" role="tab" aria-controls="tab-panel-classic" aria-selected="false" data-tab="classic">Classic Game Analysis</button>
+        <button class="tab-btn" id="tab-btn-classic" type="button" role="tab" aria-controls="tab-panel-classic" aria-selected="false" data-tab="classic">Classic Games Analysis</button>
         <button class="tab-btn" id="tab-btn-classic-country" type="button" role="tab" aria-controls="tab-panel-classic-country" aria-selected="false" data-tab="classic-country">Countries (Classic Games)</button>
         <button class="tab-btn" id="tab-btn-update" type="button" role="tab" aria-controls="tab-panel-update" aria-selected="false" data-tab="update">Update Data</button>
       </div>
@@ -329,7 +329,7 @@
 
       <div id="tab-panel-classic" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-classic">
         <div class="tab-content">
-          <h2>Classic Game Analysis</h2>
+          <h2>Classic Games Analysis</h2>
           {% set clf = classic.form if classic else classic_form %}
 
               <form method="post" action="/classic">
@@ -392,6 +392,7 @@
                         <th class="mono">Rounds</th>
                         <th class="mono">Average score</th>
                       {% endif %}
+                      <th>Show links</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -406,6 +407,7 @@
                           <td class="mono">{{ r.rounds }}</td>
                           <td class="mono">{{ (r.avg_score|round(0))|int }}</td>
                         {% endif %}
+                        <td>{% if r.links_url %}<a href="{{ r.links_url }}">show</a>{% endif %}</td>
                       </tr>
                     {% endfor %}
                   </tbody>

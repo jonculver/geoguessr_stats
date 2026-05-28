@@ -8,6 +8,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal, Optional
+from urllib.parse import urlencode
 
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -514,6 +515,26 @@ def _classic_country_round_rows(
     return rows
 
 
+def _classic_country_links_url(
+    username: str,
+    country: str,
+    mode: Optional[str],
+    map_name: Optional[str],
+    max_games: Optional[int],
+    max_days: Optional[int],
+) -> str:
+    params: dict[str, object] = {"username": username, "country": country}
+    if mode:
+        params["mode"] = mode
+    if map_name:
+        params["map_name"] = map_name
+    if max_games is not None:
+        params["max_games"] = max_games
+    if max_days is not None:
+        params["max_days"] = max_days
+    return f"/classic-country?{urlencode(params)}"
+
+
 def _load_usernames(repo_root: Path) -> list[str]:
     try:
         users_path = repo_root / "users.json"
@@ -935,6 +956,10 @@ def create_app() -> FastAPI:
         stderr = ""
         try:
             rows = _classic_country_rows(username, mode, map_name, max_games, max_days, min_rounds, sort_by or "accuracy")
+            for r in rows:
+                cc = str(r.get("cc") or "").strip().upper()
+                if cc:
+                    r["links_url"] = _classic_country_links_url(username, cc, mode, map_name, max_games, max_days)
         except Exception as e:
             stderr = str(e)
 
@@ -1068,6 +1093,96 @@ def create_app() -> FastAPI:
                 },
                 "country_available_games": country_available_games,
                 "country_options": (_country_options_for_user(username, "both", None, None, None) if username else []),
+                "classic": None,
+                "classic_form": {
+                    "username": username,
+                    "mode": None,
+                    "map_name": "",
+                    "max_games": None,
+                    "max_days": None,
+                    "min_rounds": None,
+                    "sort_by": "accuracy",
+                },
+                "classic_maps": classic_maps,
+                "classic_country": {
+                    "form": {
+                        "username": username,
+                        "country": country,
+                        "mode": mode,
+                        "map_name": map_name,
+                        "max_games": max_games,
+                        "max_days": max_days,
+                    },
+                    "stderr": stderr,
+                    "rows": rows,
+                    "maps": classic_maps,
+                },
+                "classic_country_form": {
+                    "username": username,
+                    "country": country,
+                    "mode": mode,
+                    "map_name": map_name,
+                    "max_games": max_games,
+                    "max_days": max_days,
+                },
+                "classic_country_options": classic_country_options,
+                "update": None,
+                "update_form": {
+                    "username": username,
+                    "max_games": 1000,
+                    "overwrite": False,
+                },
+            },
+        )
+
+    @app.get("/classic-country", response_class=HTMLResponse)
+    def run_classic_country_get(
+        request: Request,
+        username: str,
+        country: str,
+        mode: Optional[Literal["moving", "nm", "nmpz"]] = None,
+        map_name: str = "",
+        max_games: Optional[int] = None,
+        max_days: Optional[int] = None,
+    ):
+        rows: list[dict[str, object]] = []
+        stderr = ""
+        try:
+            rows = _classic_country_round_rows(username, country, mode, map_name, max_games, max_days)
+        except Exception as e:
+            stderr = str(e)
+
+        analyse_available_games = _available_games_count(username, "both", None, None)
+        country_available_games = analyse_available_games
+
+        classic_maps = _classic_maps_for_user(username) if username else []
+        classic_country_options = (
+            _classic_country_options_for_user(username, mode, map_name, max_games, max_days) if username else []
+        )
+
+        return templates.TemplateResponse(
+            "index.html",
+            {
+                "request": request,
+                "usernames": _load_usernames(repo_root),
+                "analyse_teammates": _team_duel_teammates_for_user(repo_root, username) if username else [],
+                "country_teammates": _team_duel_teammates_for_user(repo_root, username) if username else [],
+                "analyse": None,
+                "analyse_available_games": analyse_available_games,
+                "country": None,
+                "country_form": {
+                    "username": username,
+                    "country": "",
+                    "mode": None,
+                    "include": "both",
+                    "max_games": None,
+                    "max_days": None,
+                    "min_net": -5000,
+                },
+                "country_available_games": country_available_games,
+                "country_options": (
+                    _country_options_for_user(username, "both", None, None, None) if username else []
+                ),
                 "classic": None,
                 "classic_form": {
                     "username": username,
