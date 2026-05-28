@@ -777,7 +777,7 @@ def main():
     # Fetch subcommand
     fetch_parser = subparsers.add_parser("fetch", help="Fetch GeoGuessr games for a user")
     fetch_parser.add_argument("username", type=str, help="Username to fetch token for")
-    fetch_parser.add_argument("--max-games", type=int, default=1000, help="Maximum number of games to query (default: 1000)")
+    fetch_parser.add_argument("--max-games", type=int, default=10000, help="Maximum number of games to query (default: 10000)")
     fetch_parser.add_argument("--overwrite", action="store_true", help="Overwrite existing data files")
     fetch_parser.set_defaults(func=fetch_command)
     
