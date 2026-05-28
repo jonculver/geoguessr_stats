@@ -263,53 +263,91 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="GeoGuessr Stats")
 
-    def _count_json_list(path: Path) -> int:
-        try:
-            if not path.exists():
-                return 0
-            raw = json.loads(path.read_text(encoding="utf-8"))
-            return len(raw) if isinstance(raw, list) else 0
-        except Exception:
-            return 0
-
     @app.get("/player-summary")
     def player_summary(username: str):
         """Lightweight counts for the Update Data tab."""
         username = (username or "").strip()
         if not username:
-            return JSONResponse({"username": "", "counts": {}, "total_games": 0, "total_duels": 0})
+            return JSONResponse({"username": "", "rows": []})
 
-        output_dir = repo_root / "output"
-        ranked_duels = _count_json_list(output_dir / f"{username}_ranked_duels.json")
-        unranked_duels = _count_json_list(output_dir / f"{username}_unranked_duels.json")
-        daily_challenge = _count_json_list(output_dir / f"{username}_daily_challenge.json")
-        standard_games = _count_json_list(output_dir / f"{username}_standard_games.json")
+        def date_only(ts: str) -> Optional[str]:
+            if not ts:
+                return None
+            if "T" in ts:
+                ts = ts.split("T", 1)[0]
+            # Expect YYYY-MM-DD
+            if len(ts) >= 10 and ts[0:4].isdigit() and ts[5:7].isdigit() and ts[8:10].isdigit():
+                return ts[0:10]
+            return None
 
-        team_total = 0
-        team_teammates = 0
-        if output_dir.exists():
-            for p in output_dir.glob(f"{username}_*_ranked_team_duels.json"):
-                team_teammates += 1
-                team_total += _count_json_list(p)
+        def mode_label(mode_value: object) -> str:
+            if mode_value == GameMode.MOVING:
+                return "Moving"
+            if mode_value == GameMode.NO_MOVE:
+                return "NM"
+            if mode_value == GameMode.NMPZ:
+                return "NMPZ"
+            return "?"
 
-        total_duels = ranked_duels + unranked_duels + team_total
-        total_games = total_duels + daily_challenge + standard_games
+        # bucket_key -> {count, min_date, max_date}
+        buckets: dict[tuple[str, str], dict[str, object]] = {}
 
-        return JSONResponse(
-            {
-                "username": username,
-                "counts": {
-                    "ranked_duels": ranked_duels,
-                    "unranked_duels": unranked_duels,
-                    "ranked_team_duels": team_total,
-                    "ranked_team_teammates": team_teammates,
-                    "daily_challenge": daily_challenge,
-                    "standard_games": standard_games,
-                },
-                "total_duels": total_duels,
-                "total_games": total_games,
-            }
-        )
+        def add_game(kind: str, game) -> None:
+            ml = mode_label(getattr(game, "mode", None))
+            key = (kind, ml)
+            b = buckets.setdefault(key, {"count": 0, "min": None, "max": None})
+            b["count"] = int(b.get("count", 0) or 0) + 1
+
+            ts = getattr(game, "start_time", "") or getattr(game, "time", "") or ""
+            d = date_only(ts)
+            if not d:
+                return
+            cur_min = b.get("min")
+            cur_max = b.get("max")
+            if cur_min is None or d < cur_min:  # type: ignore[operator]
+                b["min"] = d
+            if cur_max is None or d > cur_max:  # type: ignore[operator]
+                b["max"] = d
+
+        player_data = PlayerData(username)
+        for g in getattr(player_data, "ranked_duel_games", []) or []:
+            add_game("Ranked", g)
+        for g in getattr(player_data, "unranked_duel_games", []) or []:
+            add_game("Unranked", g)
+        for games in (getattr(player_data, "ranked_team_duel_games", {}) or {}).values():
+            for g in games or []:
+                add_game("Team", g)
+
+        order = [
+            ("Ranked", "Moving"),
+            ("Ranked", "NM"),
+            ("Ranked", "NMPZ"),
+            ("Unranked", "Moving"),
+            ("Unranked", "NM"),
+            ("Unranked", "NMPZ"),
+            ("Team", "Moving"),
+            ("Team", "NM"),
+            ("Team", "NMPZ"),
+        ]
+
+        rows: list[dict[str, object]] = []
+        for kind, ml in order:
+            b = buckets.get((kind, ml))
+            if not b:
+                continue
+            count = int(b.get("count", 0) or 0)
+            if count <= 0:
+                continue
+            rows.append(
+                {
+                    "label": f"{kind} {ml}",
+                    "count": count,
+                    "from": b.get("min"),
+                    "to": b.get("max"),
+                }
+            )
+
+        return JSONResponse({"username": username, "rows": rows})
 
     @app.get("/team-duel-partners")
     def team_duel_partners(username: str):

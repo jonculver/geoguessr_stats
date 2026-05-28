@@ -569,26 +569,47 @@
 
           function renderSummary(data) {
             summaryEl.innerHTML = '';
-            if (!data || !data.counts) {
-              summaryEl.textContent = '';
+            var rows = (data && Array.isArray(data.rows)) ? data.rows : [];
+            if (!rows.length) {
+              summaryEl.textContent = 'No duels found.';
               return;
             }
 
-            var c = data.counts || {};
-            var lines = [
-              'Ranked duels: ' + (c.ranked_duels || 0),
-              'Unranked duels: ' + (c.unranked_duels || 0),
-              'Ranked team duels: ' + (c.ranked_team_duels || 0) + (c.ranked_team_teammates ? (' (across ' + c.ranked_team_teammates + ' teammates)') : ''),
-              'Daily challenges: ' + (c.daily_challenge || 0),
-              'Standard games: ' + (c.standard_games || 0),
-              'Total duels: ' + (data.total_duels || 0) + ' • Total games: ' + (data.total_games || 0),
-            ];
-
-            lines.forEach(function (t) {
-              var div = document.createElement('div');
-              div.textContent = t;
-              summaryEl.appendChild(div);
+            var table = document.createElement('table');
+            var thead = document.createElement('thead');
+            var trh = document.createElement('tr');
+            ['Duel Type', 'Count', 'Date range'].forEach(function (h) {
+              var th = document.createElement('th');
+              th.textContent = h;
+              trh.appendChild(th);
             });
+            thead.appendChild(trh);
+            table.appendChild(thead);
+
+            var tbody = document.createElement('tbody');
+            rows.forEach(function (r) {
+              var tr = document.createElement('tr');
+
+              var tdLabel = document.createElement('td');
+              tdLabel.textContent = r.label || '';
+              tr.appendChild(tdLabel);
+
+              var tdCount = document.createElement('td');
+              tdCount.className = 'mono';
+              tdCount.textContent = String(r.count || 0);
+              tr.appendChild(tdCount);
+
+              var tdRange = document.createElement('td');
+              tdRange.className = 'mono';
+              var from = r.from || '';
+              var to = r.to || '';
+              tdRange.textContent = (from && to) ? (from + ' – ' + to) : '';
+              tr.appendChild(tdRange);
+
+              tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            summaryEl.appendChild(table);
           }
 
           function refresh() {
