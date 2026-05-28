@@ -349,7 +349,6 @@
                 <label>Map</label>
                 {% set classic_map_list = (classic.maps if classic and classic.maps else classic_maps) %}
                 <select name="map_name" id="classic-map">
-                  <option value="" {% if not clf or not clf.map_name %}selected{% endif %}>Any</option>
                   {% for m in classic_map_list %}
                     <option value="{{m}}" {% if clf and clf.map_name==m %}selected{% endif %}>{{m}}</option>
                   {% endfor %}
@@ -390,7 +389,6 @@
                       {% else %}
                         <th class="mono">Accuracy</th>
                         <th class="mono">Rounds</th>
-                        <th class="mono">Average score</th>
                       {% endif %}
                       <th>Show links</th>
                     </tr>
@@ -405,7 +403,6 @@
                         {% else %}
                           <td class="mono">{{ "%.1f"|format(r.accuracy) }}%</td>
                           <td class="mono">{{ r.rounds }}</td>
-                          <td class="mono">{{ (r.avg_score|round(0))|int }}</td>
                         {% endif %}
                         <td>{% if r.links_url %}<a href="{{ r.links_url }}">show</a>{% endif %}</td>
                       </tr>
@@ -444,7 +441,6 @@
             <label>Map</label>
             {% set classic_map_list2 = (classic_country.maps if classic_country and classic_country.maps else classic_maps) %}
             <select name="map_name" id="classic-country-map">
-              <option value="" {% if not ccf or not ccf.map_name %}selected{% endif %}>Any</option>
               {% for m in classic_map_list2 %}
                 <option value="{{m}}" {% if ccf and ccf.map_name==m %}selected{% endif %}>{{m}}</option>
               {% endfor %}
