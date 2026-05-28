@@ -86,7 +86,7 @@
 
           <label>Number of games to analyse (optional)</label>
           <input type="number" name="max_games" min="1" value="{{ analyse.form.max_games if analyse and analyse.form.max_games is not none else '' }}" />
-          <div class="help">This number of the most recent games will be analysed. E.g. if 100 is selected, the most recent 100 duels are used.</div>
+          <div class="help">Only include N most recent duels that match the filters specified.</div>
 
           <label>Number of days to analyse (optional)</label>
           <input type="number" name="max_days" min="1" value="{{ analyse.form.max_days if analyse and analyse.form.max_days is not none else '' }}" />
@@ -254,7 +254,7 @@
 
           <label>Number of games to analyse (optional)</label>
           <input type="number" name="max_games" min="1" value="{{ cf.max_games if cf and cf.max_games is not none else '' }}" />
-          <div class="help">This number of the most recent games will be analysed. E.g. if 100 is selected, the most recent 100 duels are used.</div>
+          <div class="help">Only include N most recent duels that match the filters specified.</div>
 
           <label>Number of days to analyse (optional)</label>
           <input type="number" name="max_days" min="1" value="{{ cf.max_days if cf and cf.max_days is not none else '' }}" />
