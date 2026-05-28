@@ -17,6 +17,9 @@ from geoguessr.game import GameMode
 from geoguessr.user import PlayerData
 
 
+TEAM_DUEL_PARTNER_MIN_GAMES = int(os.getenv("GG_TEAM_DUEL_MIN_GAMES", "10"))
+
+
 def _load_usernames(repo_root: Path) -> list[str]:
     try:
         users_path = repo_root / "users.json"
@@ -69,7 +72,20 @@ def _team_duel_teammates_for_user(repo_root: Path, username: str) -> list[str]:
         if not m:
             continue
         teammate = (m.group("teammate") or "").strip()
-        if teammate:
+        if not teammate:
+            continue
+
+        game_count = 0
+        try:
+            raw = json.loads(p.read_text(encoding="utf-8"))
+            if isinstance(raw, list):
+                game_count = len(raw)
+            elif isinstance(raw, dict) and isinstance(raw.get("games"), list):
+                game_count = len(raw["games"])
+        except Exception:
+            game_count = 0
+
+        if game_count >= TEAM_DUEL_PARTNER_MIN_GAMES:
             teammates.add(teammate)
     return sorted(teammates, key=lambda s: s.lower())
 
