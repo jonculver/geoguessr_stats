@@ -53,6 +53,11 @@ def _run_command_capture_in_dir(func, args_obj, cwd: Path) -> tuple[str, str]:
             pass
 
 
+def _wants_json(request: Request) -> bool:
+    accept = (request.headers.get("accept") or "").lower()
+    return "application/json" in accept
+
+
 def _team_duel_teammates_for_user(repo_root: Path, username: str) -> list[str]:
     output_dir = repo_root / "output"
     if not username or not output_dir.exists():
@@ -444,7 +449,29 @@ def create_app() -> FastAPI:
         args.max_games = max_games
         args.overwrite = overwrite is not None
 
-        stdout, stderr = _run_command_capture_in_dir(fetch_command, args, repo_root)
+        stdout_buf = io.StringIO()
+        stderr_buf = io.StringIO()
+        with redirect_stdout(stdout_buf), redirect_stderr(stderr_buf):
+            try:
+                fetch_command(args)
+            except SystemExit:
+                pass
+        stdout = stdout_buf.getvalue()
+        stderr = stderr_buf.getvalue()
+        stats = getattr(args, "_fetch_stats", None)
+
+        if _wants_json(request):
+            return JSONResponse(
+                {
+                    "ok": True,
+                    "username": username,
+                    "max_games": max_games,
+                    "overwrite": overwrite is not None,
+                    "stdout": stdout.strip(),
+                    "stderr": stderr.strip(),
+                    "stats": stats,
+                }
+            )
 
         analyse_available_games = _available_games_count(username, "both", None, None)
         country_available_games = analyse_available_games
@@ -479,6 +506,7 @@ def create_app() -> FastAPI:
                     },
                     "stdout": stdout.strip(),
                     "stderr": stderr.strip(),
+                    "stats": stats,
                 },
                 "update_form": {
                     "username": username,

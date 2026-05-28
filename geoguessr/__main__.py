@@ -49,6 +49,23 @@ def fetch_command(args):
         max_games,
     )
 
+    # Structured summary for web UI (and other callers) to consume.
+    try:
+        new_team_duels = sum(len(v) for v in (getattr(geo, "ranked_team_duel_games", {}) or {}).values())
+        args._fetch_stats = {
+            "pages_fetched": getattr(geo, "pages_fetched", None),
+            "new": {
+                "daily_challenge": len(getattr(geo, "daily_challenge_games", []) or []),
+                "standard": len(getattr(geo, "standard_games", []) or []),
+                "ranked_duels": len(getattr(geo, "ranked_duel_games", []) or []),
+                "unranked_duels": len(getattr(geo, "unranked_duel_games", []) or []),
+                "ranked_team_duels": int(new_team_duels),
+            },
+        }
+    except Exception:
+        # Best-effort; never fail the fetch.
+        args._fetch_stats = None
+
     # Append player data to geo data to keep reverse chronological order
     daily_challenge_games = geo.daily_challenge_games + user_data.daily_challenge_games
     standard_games = geo.standard_games + getattr(user_data, "standard_games", [])

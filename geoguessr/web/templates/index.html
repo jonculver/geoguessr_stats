@@ -337,6 +337,7 @@
             Updating…
             <progress style="width: 100%; margin-top: 6px;"></progress>
           </div>
+          <div class="help" id="update-result" style="margin-top: 10px;"></div>
           <form id="update-data-form" method="post" action="/update-data">
 
           <label>Max games</label>
@@ -652,6 +653,8 @@
           }
 
           userSelect.addEventListener('change', refresh);
+          // Expose for other update-tab scripts (e.g. after a data fetch completes).
+          window.__refreshUpdateUserSummary = refresh;
           refresh();
         })();
 
@@ -660,6 +663,7 @@
           if (!panel) return;
           var form = panel.querySelector('form[action="/update-data"]');
           var progress = document.getElementById('update-progress');
+          var resultEl = document.getElementById('update-result');
           if (!form || !progress) return;
 
           form.addEventListener('submit', function (e) {
@@ -668,6 +672,7 @@
 
             e.preventDefault();
             progress.style.display = '';
+            if (resultEl) resultEl.textContent = '';
 
             var submitBtn = form.querySelector('button[type="submit"]');
             if (submitBtn) submitBtn.disabled = true;
@@ -676,13 +681,32 @@
             fetch(form.action, {
               method: 'POST',
               body: formData,
-              headers: { 'Accept': 'text/html' },
+              headers: { 'Accept': 'application/json' },
             })
-              .then(function (r) { return r.ok ? r.text() : Promise.reject(new Error('Request failed')); })
-              .then(function (html) {
-                document.open();
-                document.write(html);
-                document.close();
+              .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('Request failed')); })
+              .then(function (data) {
+                if (!resultEl) return;
+
+                var stats = data && data.stats;
+                var parts = [];
+                if (stats && stats.pages_fetched != null) parts.push('Fetched ' + String(stats.pages_fetched) + ' pages.');
+                if (stats && stats.new) {
+                  parts.push(
+                    'Saved new games: ' +
+                    'Daily Challenge ' + String(stats.new.daily_challenge || 0) + ', ' +
+                    'Standard ' + String(stats.new.standard || 0) + ', ' +
+                    'Ranked ' + String(stats.new.ranked_duels || 0) + ', ' +
+                    'Unranked ' + String(stats.new.unranked_duels || 0) + ', ' +
+                    'Team ' + String(stats.new.ranked_team_duels || 0) + '.'
+                  );
+                }
+
+                if (!parts.length) parts.push('Update complete.');
+                resultEl.textContent = parts.join(' ');
+
+                if (typeof window.__refreshUpdateUserSummary === 'function') {
+                  try { window.__refreshUpdateUserSummary(); } catch (err) {}
+                }
               })
               .catch(function () {
                 // Fall back to regular form submission on error.
@@ -690,6 +714,7 @@
               })
               .finally(function () {
                 if (submitBtn) submitBtn.disabled = false;
+                progress.style.display = 'none';
               });
           });
         })();

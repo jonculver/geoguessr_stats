@@ -298,6 +298,8 @@ class Geoguessr:
             # Stop if all game types are complete
             if all(complete_types.values()):
                 break
+
+        self.pages_fetched = pages_fetched
         
         print(
             f"Fetched {pages_fetched} feed pages. "
