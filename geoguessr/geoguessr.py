@@ -252,8 +252,10 @@ class Geoguessr:
         }
         token = ""
         total_game_ids = 0
+        pages_fetched = 0
         # Use tqdm to show progress of fetching game IDs
         while total_game_ids < max_games and token is not None:
+            pages_fetched += 1
             temp_games, token = self._get_game_ids_page(token)
             
             for game_type in games.keys():
@@ -298,6 +300,7 @@ class Geoguessr:
                 break
         
         print(
+            f"Fetched {pages_fetched} feed pages. "
             f"Found {len(games[GameType.DAILY_CHALLENGE])} new daily challenge games, "
             f"{len(games[GameType.STANDARD])} new standard games, "
             f"{len(games[GameType.RANKED_DUELS])} new ranked duel games, "
