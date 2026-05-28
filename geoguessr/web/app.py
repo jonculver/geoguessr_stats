@@ -1030,8 +1030,6 @@ def create_app() -> FastAPI:
                 "update": None,
                 "update_form": {
                     "username": username,
-                    "max_games": 1000,
-                    "overwrite": False,
                 },
                 "classic": {
                     "form": {
@@ -1142,8 +1140,6 @@ def create_app() -> FastAPI:
                 "update": None,
                 "update_form": {
                     "username": username,
-                    "max_games": 1000,
-                    "overwrite": False,
                 },
             },
         )
@@ -1232,8 +1228,6 @@ def create_app() -> FastAPI:
                 "update": None,
                 "update_form": {
                     "username": username,
-                    "max_games": 1000,
-                    "overwrite": False,
                 },
             },
         )
@@ -1257,8 +1251,6 @@ def create_app() -> FastAPI:
         default_max_games: Optional[int] = None
         default_max_days: Optional[int] = None
         default_min_net: int = -5000
-        default_update_max_games: int = 1000
-        default_update_overwrite: bool = False
         default_country = ""
 
         default_classic_mode: Optional[Literal["moving", "nm", "nmpz"]] = None
@@ -1318,8 +1310,6 @@ def create_app() -> FastAPI:
                 "update": None,
                 "update_form": {
                     "username": default_username,
-                    "max_games": default_update_max_games,
-                    "overwrite": default_update_overwrite,
                 },
                 "classic": None,
                 "classic_form": {
@@ -1360,16 +1350,14 @@ def create_app() -> FastAPI:
     def update_data(
         request: Request,
         username: str = Form(...),
-        max_games: int = Form(1000),
-        overwrite: Optional[str] = Form(None),
     ):
         class Args:
             pass
 
         args = Args()
         args.username = username
-        args.max_games = max_games
-        args.overwrite = overwrite is not None
+        args.max_games = None
+        args.overwrite = False
 
         stdout_buf = io.StringIO()
         stderr_buf = io.StringIO()
@@ -1387,8 +1375,6 @@ def create_app() -> FastAPI:
                 {
                     "ok": True,
                     "username": username,
-                    "max_games": max_games,
-                    "overwrite": overwrite is not None,
                     "stdout": stdout.strip(),
                     "stderr": stderr.strip(),
                     "stats": stats,
@@ -1449,8 +1435,6 @@ def create_app() -> FastAPI:
                 "update": {
                     "form": {
                         "username": username,
-                        "max_games": max_games,
-                        "overwrite": overwrite is not None,
                     },
                     "stdout": stdout.strip(),
                     "stderr": stderr.strip(),
@@ -1458,8 +1442,6 @@ def create_app() -> FastAPI:
                 },
                 "update_form": {
                     "username": username,
-                    "max_games": max_games,
-                    "overwrite": overwrite is not None,
                 },
             },
         )
@@ -1543,8 +1525,6 @@ def create_app() -> FastAPI:
                 "update": None,
                 "update_form": {
                     "username": username,
-                    "max_games": 1000,
-                    "overwrite": False,
                 },
                 "country_form": {
                     "username": username,
@@ -1646,8 +1626,6 @@ def create_app() -> FastAPI:
                 "update": None,
                 "update_form": {
                     "username": username,
-                    "max_games": 1000,
-                    "overwrite": False,
                 },
                 "country_form": {
                     "username": username,
@@ -1748,8 +1726,6 @@ def create_app() -> FastAPI:
                 "update": None,
                 "update_form": {
                     "username": username,
-                    "max_games": 1000,
-                    "overwrite": False,
                 },
                 "country_form": {
                     "username": username,

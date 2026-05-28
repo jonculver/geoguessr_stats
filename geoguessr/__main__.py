@@ -20,7 +20,15 @@ def enum_serializer(obj):
 def fetch_command(args):
     """Fetch GeoGuessr games for a user."""
     username = args.username
-    max_games = args.max_games
+    max_games = getattr(args, "max_games", None)
+    try:
+        max_games_int = int(max_games) if max_games is not None else 0
+    except Exception:
+        max_games_int = 0
+    if max_games_int <= 0:
+        # Effectively unlimited (used by the web UI).
+        max_games_int = 1_000_000_000
+    max_games = max_games_int
 
     def _is_rated_duel(g) -> bool:
         return bool((getattr(g, "rating_before", 0) or 0) or (getattr(g, "rating_after", 0) or 0))

@@ -540,9 +540,6 @@
           <div class="help" id="update-result" style="margin-top: 10px;"></div>
           <form id="update-data-form" method="post" action="/update-data">
 
-          <label>Max games</label>
-          <input type="number" name="max_games" min="1" value="{{ uf.max_games if uf and uf.max_games is not none else 1000 }}" />
-
           <button type="submit">Update Data</button>
           </form>
 
