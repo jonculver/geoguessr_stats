@@ -302,8 +302,7 @@
 
                 <label>Analysis Type</label>
                 <select name="sort_by">
-                  <option value="accuracy" {% if not clf or clf.sort_by=='accuracy' %}selected{% endif %}>Country Accuracy Analysis</option>
-                  <option value="avg_score" {% if clf and clf.sort_by=='avg_score' %}selected{% endif %}>Score Analysis</option>
+                  <option value="general" {% if not clf or not clf.sort_by or clf.sort_by=='general' %}selected{% endif %}>General Analysis</option>
                 </select>
 
                 <label>Map</label>
@@ -338,18 +337,13 @@
                 {% if classic.stderr %}
                   <div class="warn">{{ classic.stderr }}</div>
                 {% endif %}
-                {% set classic_sort = (classic.form.sort_by if classic.form and classic.form.sort_by else 'accuracy') %}
-                <table>
+                <table data-sortable="classic-general">
                   <thead>
                     <tr>
                       <th>Country</th>
-                      {% if classic_sort == 'avg_score' %}
-                        <th class="mono">Average score</th>
-                        <th class="mono">Rounds</th>
-                      {% else %}
-                        <th class="mono">Accuracy</th>
-                        <th class="mono">Rounds</th>
-                      {% endif %}
+                      <th class="mono sortable" data-sort-key="avg_score" data-sort-worst="asc" title="Click to sort (worst first)">Average score</th>
+                      <th class="mono sortable" data-sort-key="accuracy" data-sort-worst="asc" title="Click to sort (worst first)">Country accuracy</th>
+                      <th class="mono">Rounds</th>
                       <th>Show links</th>
                     </tr>
                   </thead>
@@ -357,13 +351,9 @@
                     {% for r in classic.rows %}
                       <tr>
                         <td>{{ r.name }}</td>
-                        {% if classic_sort == 'avg_score' %}
-                          <td class="mono">{{ (r.avg_score|round(0))|int }}</td>
-                          <td class="mono">{{ r.rounds }}</td>
-                        {% else %}
-                          <td class="mono">{{ "%.1f"|format(r.accuracy) }}%</td>
-                          <td class="mono">{{ r.rounds }}</td>
-                        {% endif %}
+                        <td class="mono" data-sort-value="{{"%.10f"|format(r.avg_score)}}">{{ (r.avg_score|round(0))|int }}</td>
+                        <td class="mono" data-sort-value="{{"%.10f"|format(r.accuracy)}}">{{ "%.1f"|format(r.accuracy) }}%</td>
+                        <td class="mono">{{ r.rounds }}</td>
                         <td>{% if r.links_url %}<a href="{{ r.links_url }}">show</a>{% endif %}</td>
                       </tr>
                     {% endfor %}
@@ -722,6 +712,7 @@
 
         makeTableSortable(document.querySelector('table[data-sortable="region"]'));
         makeTableSortable(document.querySelector('table[data-sortable="general"]'));
+        makeTableSortable(document.querySelector('table[data-sortable="classic-general"]'));
 
         wireTeamPartners('tab-panel-analyse');
         wireTeamPartners('tab-panel-country');

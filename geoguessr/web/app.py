@@ -963,12 +963,16 @@ def create_app() -> FastAPI:
         max_games: Optional[int] = Form(None),
         max_days: Optional[int] = Form(None),
         min_rounds: Optional[int] = Form(None),
-        sort_by: Optional[Literal["accuracy", "avg_score"]] = Form("accuracy"),
+        sort_by: Optional[Literal["general", "accuracy", "avg_score"]] = Form("general"),
     ):
         rows: list[dict[str, object]] = []
         stderr = ""
         try:
-            rows = _classic_country_rows(username, mode, map_name, max_games, max_days, min_rounds, sort_by or "accuracy")
+            sort_norm = (sort_by or "").strip().lower() or "general"
+            # Back-compat: old UI exposed score vs accuracy as separate analyses.
+            if sort_norm == "general":
+                sort_norm = "accuracy"
+            rows = _classic_country_rows(username, mode, map_name, max_games, max_days, min_rounds, sort_norm)
             for r in rows:
                 cc = str(r.get("cc") or "").strip().upper()
                 if cc:
@@ -1013,7 +1017,7 @@ def create_app() -> FastAPI:
                     "max_games": None,
                     "max_days": None,
                     "min_rounds": None,
-                    "sort_by": "accuracy",
+                    "sort_by": "general",
                 },
                 "classic_maps": _classic_maps_for_user(username) if username else [],
                 "country_form": {
