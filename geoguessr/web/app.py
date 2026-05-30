@@ -1450,7 +1450,7 @@ def create_app() -> FastAPI:
     def run_analyse(
         request: Request,
         username: str = Form(...),
-        analysis_type: Optional[Literal["region", "wrong-country", "win-percentage"]] = Form(None),
+        analysis_type: Optional[Literal["region", "general", "wrong-country", "win-percentage"]] = Form(None),
         mode: Optional[Literal["moving", "nm", "nmpz"]] = Form(None),
         include: str = Form("both"),
         max_games: Optional[int] = Form(None),
@@ -1462,7 +1462,12 @@ def create_app() -> FastAPI:
 
         args = Args()
         args.username = username
-        args.type = analysis_type
+        # Back-compat: older UI used multiple analysis types; these are now merged.
+        effective_type = analysis_type
+        if effective_type in (None, "", "wrong-country", "win-percentage"):
+            effective_type = "general"
+
+        args.type = effective_type if effective_type == "region" else None
         args.mode = mode
         args.include = include
         args.max_games = max_games
@@ -1470,7 +1475,35 @@ def create_app() -> FastAPI:
         args.min_rounds = min_rounds
 
         stdout, stderr = _run_command_capture(analyse_command, args)
-        rows = _parse_analyse(stdout, analysis_type)
+
+        rows: list[dict[str, Any]]
+        if effective_type == "general":
+            base_rows = _parse_analyse(stdout, None)
+            # Merge wrong-country stats.
+            args_wrong = Args()
+            args_wrong.username = username
+            args_wrong.type = "wrong-country"
+            args_wrong.mode = mode
+            args_wrong.include = include
+            args_wrong.max_games = max_games
+            args_wrong.max_days = max_days
+            args_wrong.min_rounds = min_rounds
+
+            stdout_wrong, stderr_wrong = _run_command_capture(analyse_command, args_wrong)
+            if stderr_wrong.strip():
+                stderr = (stderr.strip() + "\n" + stderr_wrong.strip()).strip()
+            wrong_rows = _parse_analyse(stdout_wrong, "wrong-country")
+            wrong_by_cc = {(r.get("cc") or "").upper(): r for r in wrong_rows}
+
+            rows = []
+            for r in base_rows:
+                cc = (r.get("cc") or "").upper()
+                w = wrong_by_cc.get(cc)
+                merged = dict(r)
+                merged["wrong_pct"] = float(w.get("wrong_pct")) if w and w.get("wrong_pct") is not None else float("nan")
+                rows.append(merged)
+        else:
+            rows = _parse_analyse(stdout, effective_type)
 
         analyse_available_games = _available_games_count(username, include, mode, max_days)
         country_available_games = _available_games_count(username, "both", None, None)
@@ -1490,7 +1523,7 @@ def create_app() -> FastAPI:
                 "analyse": {
                     "form": {
                         "username": username,
-                        "type": analysis_type,
+                        "type": effective_type,
                         "mode": mode,
                         "include": include,
                         "max_games": max_games,

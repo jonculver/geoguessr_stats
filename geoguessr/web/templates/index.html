@@ -58,9 +58,7 @@
 
           <label>Analysis Type</label>
           <select name="analysis_type">
-            <option value="" {% if not (analyse and analyse.form.type) %}selected{% endif %}>Damage Analysis</option>
-            <option value="win-percentage" {% if analyse and analyse.form.type=="win-percentage" %}selected{% endif %}>Win Percentage Analysis</option>
-            <option value="wrong-country" {% if analyse and analyse.form.type=="wrong-country" %}selected{% endif %}>Country Accuracy Analysis</option>
+            <option value="general" {% if not (analyse and analyse.form.type) or (analyse and analyse.form.type=="general") %}selected{% endif %}>General Analysis</option>
             <option value="region" {% if analyse and analyse.form.type=="region" %}selected{% endif %}>Regionguessing Analysis</option>
           </select>
 
@@ -104,40 +102,16 @@
           </form>
 
         {% if analyse %}
-          {% set analysis_label = "Damage Analysis" if not analyse.form.type else (
-            "Win Percentage Analysis" if analyse.form.type == "win-percentage" else
-            "Country Accuracy Analysis" if analyse.form.type == "wrong-country" else
+          {% set analysis_label = (
             "Regionguessing Analysis" if analyse.form.type == "region" else
-            analyse.form.type
+            "General Analysis"
           ) %}
           <h3 style="margin: 16px 0 0 0;">{{ analysis_label }}</h3>
           {% if analyse.stderr %}
             <div class="warn">{{ analyse.stderr }}</div>
           {% endif %}
 
-          {% if analyse.form.type == "wrong-country" %}
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th><th>Country</th><th>% wrong</th><th>Rounds</th><th>Show Rounds</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for r in analyse.rows %}
-                  <tr>
-                    <td>{{r.idx}}</td>
-                    <td>{{r.name}}</td>
-                    <td>{{"%.1f"|format(r.wrong_pct)}}</td>
-                    <td>{{r.rounds}}</td>
-                    <td>
-                      <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}&min_net=-5000{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}{% if analyse.form.max_days %}&max_days={{ analyse.form.max_days }}{% endif %}">Show Rounds</a>
-                    </td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          {% else %}
-            {% if analyse.form.type == "region" %}
+          {% if analyse.form.type == "region" %}
               <div class="help">Only analyses rounds in which both players guessed the correct country.</div>
               <table data-sortable="region">
                 <thead>
@@ -160,49 +134,35 @@
                   {% endfor %}
                 </tbody>
               </table>
-            {% elif analyse.form.type == "win-percentage" %}
-              <table>
-                <thead>
+          {% else %}
+            <table data-sortable="general">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Country</th>
+                  <th class="sortable" data-sort-key="win" data-sort-worst="asc" title="Click to sort (worst first)">Win %</th>
+                  <th class="sortable" data-sort-key="avg_net" data-sort-worst="desc" title="Click to sort (worst first)">Average net damage taken (divided by multiplier)</th>
+                  <th class="sortable" data-sort-key="wrong_pct" data-sort-worst="desc" title="Click to sort (worst first)">Country accuracy (wrong %)</th>
+                  <th>Number of Rounds</th>
+                  <th>Show Rounds</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in analyse.rows %}
                   <tr>
-                    <th>#</th><th>Country</th><th>Win %</th><th>Number of Rounds</th><th>Show Rounds</th>
+                    <td>{{r.idx}}</td>
+                    <td>{{r.name}}</td>
+                    <td data-sort-value="{{"%.10f"|format(r.win)}}">{{"%.1f"|format(r.win)}}</td>
+                    <td data-sort-value="{{"%.10f"|format(r.avg_net)}}">{{"%.2f"|format(r.avg_net)}}</td>
+                    <td data-sort-value="{{"%.10f"|format(r.wrong_pct)}}">{% if r.wrong_pct == r.wrong_pct %}{{"%.1f"|format(r.wrong_pct)}}{% endif %}</td>
+                    <td>{{r.rounds}}</td>
+                    <td>
+                      <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}&min_net=-5000{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}{% if analyse.form.max_days %}&max_days={{ analyse.form.max_days }}{% endif %}">Show Rounds</a>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {% for r in analyse.rows %}
-                    <tr>
-                      <td>{{r.idx}}</td>
-                      <td>{{r.name}}</td>
-                      <td>{{r.win}}</td>
-                      <td>{{r.rounds}}</td>
-                      <td>
-                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}&min_net=-5000{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}{% if analyse.form.max_days %}&max_days={{ analyse.form.max_days }}{% endif %}">Show Rounds</a>
-                      </td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            {% else %}
-              <table>
-                <thead>
-                  <tr>
-                    <th>#</th><th>Country</th><th>Average net damage taken (divided by multiplier)</th><th>Number of Rounds</th><th>Show Rounds</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for r in analyse.rows %}
-                    <tr>
-                      <td>{{r.idx}}</td>
-                      <td>{{r.name}}</td>
-                      <td>{{"%.2f"|format(r.avg_net)}}</td>
-                      <td>{{r.rounds}}</td>
-                      <td>
-                        <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}&min_net=-5000{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}{% if analyse.form.max_days %}&max_days={{ analyse.form.max_days }}{% endif %}">Show Rounds</a>
-                      </td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            {% endif %}
+                {% endfor %}
+              </tbody>
+            </table>
           {% endif %}
         {% endif %}
         </div>
@@ -695,7 +655,8 @@
           headers.forEach(function (th) {
             th.addEventListener('click', function () {
               var columnIndex = th.cellIndex;
-              var nextDir = th.getAttribute('data-sort-dir') === 'asc' ? 'desc' : 'asc';
+              var worstDir = th.getAttribute('data-sort-worst');
+              var nextDir = worstDir || (th.getAttribute('data-sort-dir') === 'asc' ? 'desc' : 'asc');
 
               headers.forEach(function (h) {
                 h.removeAttribute('aria-sort');
@@ -760,6 +721,7 @@
         setActive(initial);
 
         makeTableSortable(document.querySelector('table[data-sortable="region"]'));
+        makeTableSortable(document.querySelector('table[data-sortable="general"]'));
 
         wireTeamPartners('tab-panel-analyse');
         wireTeamPartners('tab-panel-country');
