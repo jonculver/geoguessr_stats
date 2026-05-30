@@ -1500,7 +1500,8 @@ def create_app() -> FastAPI:
                 cc = (r.get("cc") or "").upper()
                 w = wrong_by_cc.get(cc)
                 merged = dict(r)
-                merged["wrong_pct"] = float(w.get("wrong_pct")) if w and w.get("wrong_pct") is not None else float("nan")
+                wrong_pct = float(w.get("wrong_pct")) if w and w.get("wrong_pct") is not None else float("nan")
+                merged["accuracy_pct"] = (100.0 - wrong_pct) if wrong_pct == wrong_pct else float("nan")
                 rows.append(merged)
         else:
             rows = _parse_analyse(stdout, effective_type)

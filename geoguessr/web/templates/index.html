@@ -140,9 +140,9 @@
                 <tr>
                   <th>#</th>
                   <th>Country</th>
-                  <th class="sortable" data-sort-key="win" data-sort-worst="asc" title="Click to sort (worst first)">Win %</th>
                   <th class="sortable" data-sort-key="avg_net" data-sort-worst="desc" title="Click to sort (worst first)">Average net damage taken (divided by multiplier)</th>
-                  <th class="sortable" data-sort-key="wrong_pct" data-sort-worst="desc" title="Click to sort (worst first)">Country accuracy (wrong %)</th>
+                  <th class="sortable" data-sort-key="win" data-sort-worst="asc" title="Click to sort (worst first)">Win %</th>
+                  <th class="sortable" data-sort-key="accuracy_pct" data-sort-worst="asc" title="Click to sort (worst first)">Country accuracy (%)</th>
                   <th>Number of Rounds</th>
                   <th>Show Rounds</th>
                 </tr>
@@ -152,9 +152,9 @@
                   <tr>
                     <td>{{r.idx}}</td>
                     <td>{{r.name}}</td>
-                    <td data-sort-value="{{"%.10f"|format(r.win)}}">{{"%.1f"|format(r.win)}}</td>
                     <td data-sort-value="{{"%.10f"|format(r.avg_net)}}">{{"%.2f"|format(r.avg_net)}}</td>
-                    <td data-sort-value="{{"%.10f"|format(r.wrong_pct)}}">{% if r.wrong_pct == r.wrong_pct %}{{"%.1f"|format(r.wrong_pct)}}{% endif %}</td>
+                    <td data-sort-value="{{"%.10f"|format(r.win)}}">{{"%.1f"|format(r.win)}}</td>
+                    <td data-sort-value="{{"%.10f"|format(r.accuracy_pct)}}">{% if r.accuracy_pct == r.accuracy_pct %}{{"%.1f"|format(r.accuracy_pct)}}{% endif %}</td>
                     <td>{{r.rounds}}</td>
                     <td>
                       <a href="/country?username={{ analyse.form.username | urlencode }}&country={{ r.cc | urlencode }}&include={{ analyse.form.include | urlencode }}&min_net=-5000{% if analyse.form.mode %}&mode={{ analyse.form.mode | urlencode }}{% endif %}{% if analyse.form.max_games %}&max_games={{ analyse.form.max_games }}{% endif %}{% if analyse.form.max_days %}&max_days={{ analyse.form.max_days }}{% endif %}">Show Rounds</a>
