@@ -504,6 +504,10 @@
           <h3 style="margin: 16px 0 0 0;">Saved Data</h3>
           <div class="help" id="update-user-summary" style="margin-top: 6px;"></div>
 
+          <button type="button" id="classic-map-counts-btn">Show classic games per map</button>
+          <div class="help" id="classic-map-counts-status" style="margin-top: 6px;"></div>
+          <div id="classic-map-counts" style="display:none; margin-top: 10px;"></div>
+
           <h3 style="margin: 16px 0 0 0;">Update Data</h3>
           <div class="help" id="update-progress" style="display:none; margin-top: 10px;">
             Updating…
@@ -964,6 +968,81 @@
           // Expose for other update-tab scripts (e.g. after a data fetch completes).
           window.__refreshUpdateUserSummary = refresh;
           refresh();
+        })();
+
+        (function wireClassicMapCounts() {
+          var panel = document.getElementById('tab-panel-update');
+          if (!panel) return;
+
+          var userSelect = document.getElementById('update-summary-username');
+          var btn = document.getElementById('classic-map-counts-btn');
+          var statusEl = document.getElementById('classic-map-counts-status');
+          var outEl = document.getElementById('classic-map-counts');
+          if (!userSelect || !btn || !outEl) return;
+
+          function render(data) {
+            outEl.innerHTML = '';
+            var rows = (data && Array.isArray(data.rows)) ? data.rows : [];
+            if (!rows.length) {
+              outEl.style.display = 'none';
+              if (statusEl) statusEl.textContent = 'No maps found.';
+              return;
+            }
+
+            var table = document.createElement('table');
+            var thead = document.createElement('thead');
+            var trh = document.createElement('tr');
+            ['Map', 'Classic games'].forEach(function (h) {
+              var th = document.createElement('th');
+              th.textContent = h;
+              trh.appendChild(th);
+            });
+            thead.appendChild(trh);
+            table.appendChild(thead);
+
+            var tbody = document.createElement('tbody');
+            rows.forEach(function (r) {
+              var tr = document.createElement('tr');
+
+              var tdMap = document.createElement('td');
+              tdMap.textContent = r.map || '';
+              tr.appendChild(tdMap);
+
+              var tdCount = document.createElement('td');
+              tdCount.className = 'mono';
+              tdCount.textContent = String(r.count || 0);
+              tr.appendChild(tdCount);
+
+              tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            outEl.appendChild(table);
+
+            outEl.style.display = '';
+            if (statusEl) statusEl.textContent = '';
+          }
+
+          function load() {
+            var username = userSelect.value || '';
+            if (!username) {
+              if (statusEl) statusEl.textContent = '';
+              outEl.style.display = 'none';
+              outEl.innerHTML = '';
+              return;
+            }
+
+            if (statusEl) statusEl.textContent = 'Loading…';
+            fetch('/classic-map-counts?username=' + encodeURIComponent(username), { headers: { 'Accept': 'application/json' } })
+              .then(function (r) { return r.ok ? r.json() : null; })
+              .then(function (data) { render(data); })
+              .catch(function () {
+                outEl.style.display = 'none';
+                outEl.innerHTML = '';
+                if (statusEl) statusEl.textContent = 'Unable to load map counts.';
+              });
+          }
+
+          btn.addEventListener('click', load);
         })();
 
         (function wireUpdateDataProgress() {

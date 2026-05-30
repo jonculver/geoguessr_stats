@@ -105,6 +105,29 @@ def _classic_maps_for_user(username: str, min_games: int = CLASSIC_MAP_MIN_GAMES
     return sorted(maps, key=lambda s: s.lower())
 
 
+def _classic_map_counts_for_user(username: str) -> list[dict[str, object]]:
+    """Return classic (standard) game counts per map, including low-frequency maps."""
+    username = (username or "").strip()
+    if not username:
+        return []
+
+    player_data = PlayerData(username)
+    counts: dict[str, int] = {}
+    for g in getattr(player_data, "standard_games", []) or []:
+        name = (getattr(g, "map_name", "") or "").strip()
+        if not name:
+            raw = getattr(g, "raw", None)
+            if isinstance(raw, dict):
+                name = (str(raw.get("mapName") or "")).strip()
+        if not name:
+            continue
+        counts[name] = counts.get(name, 0) + 1
+
+    rows = [{"map": k, "count": v} for k, v in counts.items()]
+    rows.sort(key=lambda r: (-int(r.get("count", 0) or 0), str(r.get("map") or "").lower()))
+    return rows
+
+
 def _classic_country_rows(
     username: str,
     mode: Optional[str],
@@ -972,6 +995,14 @@ def create_app() -> FastAPI:
             rows.append({"label": label, "count": count, "from": b.get("min"), "to": b.get("max")})
 
         return JSONResponse({"username": username, "rows": rows})
+
+    @app.get("/classic-map-counts")
+    def classic_map_counts(username: str):
+        """Counts of classic (standard) games per map (includes maps with <50 plays)."""
+        username = (username or "").strip()
+        if not username:
+            return JSONResponse({"username": "", "rows": []})
+        return JSONResponse({"username": username, "rows": _classic_map_counts_for_user(username)})
 
     @app.get("/team-duel-partners")
     def team_duel_partners(username: str):
