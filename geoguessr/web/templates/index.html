@@ -307,11 +307,21 @@
 
                 <label>Map</label>
                 {% set classic_map_list = (classic.maps if classic and classic.maps else classic_maps) %}
-                <select name="map_name" id="classic-map">
+                {% set ns = namespace(selected_maps=[]) %}
+                {% if clf and clf.map_names %}
+                  {% set ns.selected_maps = clf.map_names %}
+                {% elif clf and clf.map_name %}
+                  {% set ns.selected_maps = [clf.map_name] %}
+                {% endif %}
+                <div id="classic-maps" style="margin-top: 4px;">
                   {% for m in classic_map_list %}
-                    <option value="{{m}}" {% if clf and clf.map_name==m %}selected{% endif %}>{{m}}</option>
+                    <label style="display:flex; align-items:center; gap:8px; margin-top: 6px;">
+                      <input type="checkbox" name="map_names" value="{{m}}" style="width:auto; margin:0;" {% if m in ns.selected_maps %}checked{% endif %} />
+                      {{m}}
+                    </label>
                   {% endfor %}
-                </select>
+                </div>
+                <div class="help">Leave all unchecked for Any map.</div>
 
                 <label>Mode</label>
                 <select name="mode">
@@ -390,11 +400,21 @@
 
             <label>Map</label>
             {% set classic_map_list2 = (classic_country.maps if classic_country and classic_country.maps else classic_maps) %}
-            <select name="map_name" id="classic-country-map">
+            {% set ns2 = namespace(selected_maps=[]) %}
+            {% if ccf and ccf.map_names %}
+              {% set ns2.selected_maps = ccf.map_names %}
+            {% elif ccf and ccf.map_name %}
+              {% set ns2.selected_maps = [ccf.map_name] %}
+            {% endif %}
+            <div id="classic-country-maps" style="margin-top: 4px;">
               {% for m in classic_map_list2 %}
-                <option value="{{m}}" {% if ccf and ccf.map_name==m %}selected{% endif %}>{{m}}</option>
+                <label style="display:flex; align-items:center; gap:8px; margin-top: 6px;">
+                  <input type="checkbox" name="map_names" value="{{m}}" style="width:auto; margin:0;" {% if m in ns2.selected_maps %}checked{% endif %} />
+                  {{m}}
+                </label>
               {% endfor %}
-            </select>
+            </div>
+            <div class="help">Leave all unchecked for Any map.</div>
 
             <label>Mode</label>
             <select name="mode">
@@ -723,8 +743,8 @@
             var panel = document.getElementById('tab-panel-classic');
             if (!panel) return;
             var usernameEl = panel.querySelector('select[name="username"]');
-            var mapEl = panel.querySelector('select[name="map_name"]');
-            if (!usernameEl || !mapEl) return;
+            var mapsWrap = panel.querySelector('#classic-maps');
+            if (!usernameEl || !mapsWrap) return;
 
             // If the user changes sorting, auto-run (submit) to refresh results.
             var sortEl = panel.querySelector('select[name="sort_by"]');
@@ -739,34 +759,40 @@
               });
             }
 
-            function rebuildMaps(maps, selectedValue) {
-              var anyOpt = document.createElement('option');
-              anyOpt.value = '';
-              anyOpt.textContent = 'Any';
+            function getSelected() {
+              return Array.prototype.slice.call(mapsWrap.querySelectorAll('input[name="map_names"]:checked'))
+                .map(function (el) { return el.value; });
+            }
 
-              mapEl.innerHTML = '';
-              mapEl.appendChild(anyOpt);
+            function rebuildMaps(maps, selectedValues) {
+              mapsWrap.innerHTML = '';
+              if (!Array.isArray(maps) || !maps.length) return;
+              maps.forEach(function (m) {
+                var lab = document.createElement('label');
+                lab.style.display = 'flex';
+                lab.style.alignItems = 'center';
+                lab.style.gap = '8px';
+                lab.style.marginTop = '6px';
 
-              if (Array.isArray(maps) && maps.length) {
-                maps.forEach(function (m) {
-                  var opt = document.createElement('option');
-                  opt.value = m;
-                  opt.textContent = m;
-                  mapEl.appendChild(opt);
-                });
-              }
+                var cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.name = 'map_names';
+                cb.value = m;
+                cb.style.width = 'auto';
+                cb.style.margin = '0';
+                if (Array.isArray(selectedValues) && selectedValues.indexOf(m) !== -1) {
+                  cb.checked = true;
+                }
 
-              var values = Array.prototype.slice.call(mapEl.options).map(function (o) { return o.value; });
-              if (selectedValue && values.indexOf(selectedValue) !== -1) {
-                mapEl.value = selectedValue;
-              } else {
-                mapEl.value = '';
-              }
+                lab.appendChild(cb);
+                lab.appendChild(document.createTextNode(m));
+                mapsWrap.appendChild(lab);
+              });
             }
 
             function refresh() {
               var username = usernameEl.value || '';
-              var selected = mapEl.value;
+              var selected = getSelected();
               if (!username) {
                 rebuildMaps([], selected);
                 return;
@@ -788,37 +814,43 @@
             var panel = document.getElementById('tab-panel-classic-country');
             if (!panel) return;
             var usernameEl = panel.querySelector('select[name="username"]');
-            var mapEl = panel.querySelector('select[name="map_name"]');
-            if (!usernameEl || !mapEl) return;
+            var mapsWrap = panel.querySelector('#classic-country-maps');
+            if (!usernameEl || !mapsWrap) return;
 
-            function rebuildMaps(maps, selectedValue) {
-              var anyOpt = document.createElement('option');
-              anyOpt.value = '';
-              anyOpt.textContent = 'Any';
+            function getSelected() {
+              return Array.prototype.slice.call(mapsWrap.querySelectorAll('input[name="map_names"]:checked'))
+                .map(function (el) { return el.value; });
+            }
 
-              mapEl.innerHTML = '';
-              mapEl.appendChild(anyOpt);
+            function rebuildMaps(maps, selectedValues) {
+              mapsWrap.innerHTML = '';
+              if (!Array.isArray(maps) || !maps.length) return;
+              maps.forEach(function (m) {
+                var lab = document.createElement('label');
+                lab.style.display = 'flex';
+                lab.style.alignItems = 'center';
+                lab.style.gap = '8px';
+                lab.style.marginTop = '6px';
 
-              if (Array.isArray(maps) && maps.length) {
-                maps.forEach(function (m) {
-                  var opt = document.createElement('option');
-                  opt.value = m;
-                  opt.textContent = m;
-                  mapEl.appendChild(opt);
-                });
-              }
+                var cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.name = 'map_names';
+                cb.value = m;
+                cb.style.width = 'auto';
+                cb.style.margin = '0';
+                if (Array.isArray(selectedValues) && selectedValues.indexOf(m) !== -1) {
+                  cb.checked = true;
+                }
 
-              var values = Array.prototype.slice.call(mapEl.options).map(function (o) { return o.value; });
-              if (selectedValue && values.indexOf(selectedValue) !== -1) {
-                mapEl.value = selectedValue;
-              } else {
-                mapEl.value = '';
-              }
+                lab.appendChild(cb);
+                lab.appendChild(document.createTextNode(m));
+                mapsWrap.appendChild(lab);
+              });
             }
 
             function refresh() {
               var username = usernameEl.value || '';
-              var selected = mapEl.value;
+              var selected = getSelected();
               if (!username) {
                 rebuildMaps([], selected);
                 return;

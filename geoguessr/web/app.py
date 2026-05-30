@@ -29,6 +29,35 @@ TEAM_DUEL_PARTNER_MIN_GAMES = int(os.getenv("GG_TEAM_DUEL_MIN_GAMES", "10"))
 CLASSIC_MAP_MIN_GAMES = int(os.getenv("GG_CLASSIC_MAP_MIN_GAMES", "50"))
 
 
+def _classic_clean_map_names(map_names: Optional[list[str]] = None, map_name: Optional[str] = None) -> list[str]:
+    """Normalize map filters.
+
+    - Empty / missing means "any map".
+    - Accepts both multi-select `map_names` and legacy single `map_name`.
+    """
+    candidates: list[str] = []
+    if map_names:
+        for m in map_names:
+            if m is not None:
+                candidates.append(str(m))
+    if map_name:
+        candidates.append(str(map_name))
+
+    out: list[str] = []
+    seen: set[str] = set()
+    for c in candidates:
+        v = (c or "").strip()
+        if not v:
+            continue
+        if v.lower() == "any":
+            continue
+        if v in seen:
+            continue
+        seen.add(v)
+        out.append(v)
+    return out
+
+
 def _parse_iso_datetime(ts: str) -> Optional[datetime]:
     if not ts or not isinstance(ts, str):
         return None
@@ -79,7 +108,7 @@ def _classic_maps_for_user(username: str, min_games: int = CLASSIC_MAP_MIN_GAMES
 def _classic_country_rows(
     username: str,
     mode: Optional[str],
-    map_name: Optional[str],
+    map_names: Optional[list[str]],
     max_games: Optional[int],
     max_days: Optional[int],
     min_rounds: Optional[int],
@@ -90,9 +119,8 @@ def _classic_country_rows(
         return []
 
     mode_norm = (mode or "").strip().lower() or None
-    map_norm = (map_name or "").strip() or None
-    if map_norm == "any":
-        map_norm = None
+    map_list = _classic_clean_map_names(map_names=map_names)
+    map_set = set(map_list) if map_list else None
 
     player_data = PlayerData(username)
     games = list(getattr(player_data, "standard_games", []) or [])
@@ -153,9 +181,9 @@ def _classic_country_rows(
             if _classic_mode_label(raw) != mode_norm:
                 continue
 
-        if map_norm:
+        if map_set:
             gn = (raw.get("mapName") or getattr(g, "map_name", "") or "").strip()
-            if gn != map_norm:
+            if gn not in map_set:
                 continue
 
         rounds = raw.get("rounds")
@@ -227,7 +255,7 @@ def _classic_country_rows(
 def _classic_country_options_for_user(
     username: str,
     mode: Optional[str],
-    map_name: Optional[str],
+    map_names: Optional[list[str]],
     max_games: Optional[int],
     max_days: Optional[int],
 ) -> list[dict[str, str]]:
@@ -237,9 +265,8 @@ def _classic_country_options_for_user(
         return []
 
     mode_norm = (mode or "").strip().lower() or None
-    map_norm = (map_name or "").strip() or None
-    if map_norm == "any":
-        map_norm = None
+    map_list = _classic_clean_map_names(map_names=map_names)
+    map_set = set(map_list) if map_list else None
 
     player_data = PlayerData(username)
     games = list(getattr(player_data, "standard_games", []) or [])
@@ -279,9 +306,9 @@ def _classic_country_options_for_user(
             continue
         if mode_norm and _classic_mode_label(raw) != mode_norm:
             continue
-        if map_norm:
+        if map_set:
             gn = (raw.get("mapName") or getattr(g, "map_name", "") or "").strip()
-            if gn != map_norm:
+            if gn not in map_set:
                 continue
         rounds = raw.get("rounds")
         if not isinstance(rounds, list):
@@ -303,7 +330,7 @@ def _classic_country_round_rows(
     username: str,
     country: str,
     mode: Optional[str],
-    map_name: Optional[str],
+    map_names: Optional[list[str]],
     max_games: Optional[int],
     max_days: Optional[int],
 ) -> list[dict[str, object]]:
@@ -317,9 +344,8 @@ def _classic_country_round_rows(
         return []
 
     mode_norm = (mode or "").strip().lower() or None
-    map_norm = (map_name or "").strip() or None
-    if map_norm == "any":
-        map_norm = None
+    map_list = _classic_clean_map_names(map_names=map_names)
+    map_set = set(map_list) if map_list else None
 
     player_data = PlayerData(username)
     games = list(getattr(player_data, "standard_games", []) or [])
@@ -418,9 +444,9 @@ def _classic_country_round_rows(
         if mode_norm and _classic_mode_label(raw) != mode_norm:
             continue
 
-        if map_norm:
+        if map_set:
             gn = (raw.get("mapName") or getattr(g, "map_name", "") or "").strip()
-            if gn != map_norm:
+            if gn not in map_set:
                 continue
 
         rounds = raw.get("rounds")
@@ -519,20 +545,21 @@ def _classic_country_links_url(
     username: str,
     country: str,
     mode: Optional[str],
-    map_name: Optional[str],
+    map_names: Optional[list[str]],
     max_games: Optional[int],
     max_days: Optional[int],
 ) -> str:
-    params: dict[str, object] = {"username": username, "country": country}
+    params: list[tuple[str, object]] = [("username", username), ("country", country)]
     if mode:
-        params["mode"] = mode
-    if map_name:
-        params["map_name"] = map_name
+        params.append(("mode", mode))
+    if map_names:
+        for m in _classic_clean_map_names(map_names=map_names):
+            params.append(("map_names", m))
     if max_games is not None:
-        params["max_games"] = max_games
+        params.append(("max_games", max_games))
     if max_days is not None:
-        params["max_days"] = max_days
-    return f"/classic-country?{urlencode(params)}"
+        params.append(("max_days", max_days))
+    return f"/classic-country?{urlencode(params, doseq=True)}"
 
 
 def _load_usernames(repo_root: Path) -> list[str]:
@@ -959,6 +986,7 @@ def create_app() -> FastAPI:
         request: Request,
         username: str = Form(...),
         mode: Optional[Literal["moving", "nm", "nmpz"]] = Form(None),
+        map_names: Optional[list[str]] = Form(None),
         map_name: str = Form(""),
         max_games: Optional[int] = Form(None),
         max_days: Optional[int] = Form(None),
@@ -967,16 +995,17 @@ def create_app() -> FastAPI:
     ):
         rows: list[dict[str, object]] = []
         stderr = ""
+        selected_maps = _classic_clean_map_names(map_names=map_names, map_name=map_name)
         try:
             sort_norm = (sort_by or "").strip().lower() or "general"
             # Back-compat: old UI exposed score vs accuracy as separate analyses.
             if sort_norm == "general":
                 sort_norm = "accuracy"
-            rows = _classic_country_rows(username, mode, map_name, max_games, max_days, min_rounds, sort_norm)
+            rows = _classic_country_rows(username, mode, selected_maps, max_games, max_days, min_rounds, sort_norm)
             for r in rows:
                 cc = str(r.get("cc") or "").strip().upper()
                 if cc:
-                    r["links_url"] = _classic_country_links_url(username, cc, mode, map_name, max_games, max_days)
+                    r["links_url"] = _classic_country_links_url(username, cc, mode, selected_maps, max_games, max_days)
         except Exception as e:
             stderr = str(e)
 
@@ -989,6 +1018,7 @@ def create_app() -> FastAPI:
             "username": username,
             "country": "",
             "mode": None,
+            "map_names": [],
             "map_name": "",
             "max_games": None,
             "max_days": None,
@@ -1008,11 +1038,12 @@ def create_app() -> FastAPI:
                 "classic_country": None,
                 "classic_country_form": classic_country_form,
                 "classic_country_options": (
-                    _classic_country_options_for_user(username, None, "", None, None) if username else []
+                    _classic_country_options_for_user(username, None, [], None, None) if username else []
                 ),
                 "classic_form": {
                     "username": username,
                     "mode": None,
+                    "map_names": [],
                     "map_name": "",
                     "max_games": None,
                     "max_days": None,
@@ -1039,6 +1070,7 @@ def create_app() -> FastAPI:
                     "form": {
                         "username": username,
                         "mode": mode,
+                        "map_names": selected_maps,
                         "map_name": map_name,
                         "max_games": max_games,
                         "max_days": max_days,
@@ -1052,6 +1084,7 @@ def create_app() -> FastAPI:
                 "classic_form": {
                     "username": username,
                     "mode": mode,
+                    "map_names": selected_maps,
                     "map_name": map_name,
                     "max_games": max_games,
                     "max_days": max_days,
@@ -1068,14 +1101,16 @@ def create_app() -> FastAPI:
         username: str = Form(...),
         country: str = Form(...),
         mode: Optional[Literal["moving", "nm", "nmpz"]] = Form(None),
+        map_names: Optional[list[str]] = Form(None),
         map_name: str = Form(""),
         max_games: Optional[int] = Form(None),
         max_days: Optional[int] = Form(None),
     ):
         rows: list[dict[str, object]] = []
         stderr = ""
+        selected_maps = _classic_clean_map_names(map_names=map_names, map_name=map_name)
         try:
-            rows = _classic_country_round_rows(username, country, mode, map_name, max_games, max_days)
+            rows = _classic_country_round_rows(username, country, mode, selected_maps, max_games, max_days)
         except Exception as e:
             stderr = str(e)
 
@@ -1084,7 +1119,7 @@ def create_app() -> FastAPI:
 
         classic_maps = _classic_maps_for_user(username) if username else []
         classic_country_options = (
-            _classic_country_options_for_user(username, mode, map_name, max_games, max_days) if username else []
+            _classic_country_options_for_user(username, mode, selected_maps, max_games, max_days) if username else []
         )
 
         return templates.TemplateResponse(
@@ -1112,6 +1147,7 @@ def create_app() -> FastAPI:
                 "classic_form": {
                     "username": username,
                     "mode": None,
+                    "map_names": [],
                     "map_name": "",
                     "max_games": None,
                     "max_days": None,
@@ -1124,6 +1160,7 @@ def create_app() -> FastAPI:
                         "username": username,
                         "country": country,
                         "mode": mode,
+                        "map_names": selected_maps,
                         "map_name": map_name,
                         "max_games": max_games,
                         "max_days": max_days,
@@ -1136,6 +1173,7 @@ def create_app() -> FastAPI:
                     "username": username,
                     "country": country,
                     "mode": mode,
+                    "map_names": selected_maps,
                     "map_name": map_name,
                     "max_games": max_games,
                     "max_days": max_days,
@@ -1154,14 +1192,16 @@ def create_app() -> FastAPI:
         username: str,
         country: str,
         mode: Optional[Literal["moving", "nm", "nmpz"]] = None,
+        map_names: Optional[list[str]] = None,
         map_name: str = "",
         max_games: Optional[int] = None,
         max_days: Optional[int] = None,
     ):
         rows: list[dict[str, object]] = []
         stderr = ""
+        selected_maps = _classic_clean_map_names(map_names=map_names, map_name=map_name)
         try:
-            rows = _classic_country_round_rows(username, country, mode, map_name, max_games, max_days)
+            rows = _classic_country_round_rows(username, country, mode, selected_maps, max_games, max_days)
         except Exception as e:
             stderr = str(e)
 
@@ -1170,7 +1210,7 @@ def create_app() -> FastAPI:
 
         classic_maps = _classic_maps_for_user(username) if username else []
         classic_country_options = (
-            _classic_country_options_for_user(username, mode, map_name, max_games, max_days) if username else []
+            _classic_country_options_for_user(username, mode, selected_maps, max_games, max_days) if username else []
         )
 
         return templates.TemplateResponse(
@@ -1200,6 +1240,7 @@ def create_app() -> FastAPI:
                 "classic_form": {
                     "username": username,
                     "mode": None,
+                    "map_names": [],
                     "map_name": "",
                     "max_games": None,
                     "max_days": None,
@@ -1212,6 +1253,7 @@ def create_app() -> FastAPI:
                         "username": username,
                         "country": country,
                         "mode": mode,
+                        "map_names": selected_maps,
                         "map_name": map_name,
                         "max_games": max_games,
                         "max_days": max_days,
@@ -1224,6 +1266,7 @@ def create_app() -> FastAPI:
                     "username": username,
                     "country": country,
                     "mode": mode,
+                    "map_names": selected_maps,
                     "map_name": map_name,
                     "max_games": max_games,
                     "max_days": max_days,
@@ -1289,7 +1332,7 @@ def create_app() -> FastAPI:
             _classic_country_options_for_user(
                 default_username,
                 default_classic_mode,
-                default_classic_map_name,
+                [],
                 default_max_games,
                 default_max_days,
             )
@@ -1319,6 +1362,7 @@ def create_app() -> FastAPI:
                 "classic_form": {
                     "username": default_username,
                     "mode": default_classic_mode,
+                    "map_names": [],
                     "map_name": default_classic_map_name,
                     "max_games": default_max_games,
                     "max_days": default_max_days,
@@ -1331,6 +1375,7 @@ def create_app() -> FastAPI:
                     "username": default_username,
                     "country": default_classic_country,
                     "mode": default_classic_mode,
+                    "map_names": [],
                     "map_name": default_classic_map_name,
                     "max_games": default_max_games,
                     "max_days": default_max_days,
@@ -1390,7 +1435,7 @@ def create_app() -> FastAPI:
 
         classic_maps = _classic_maps_for_user(username) if username else []
         classic_country_options = (
-            _classic_country_options_for_user(username, None, "", None, None) if username else []
+            _classic_country_options_for_user(username, None, [], None, None) if username else []
         )
 
         return templates.TemplateResponse(
@@ -1407,6 +1452,7 @@ def create_app() -> FastAPI:
                 "classic_form": {
                     "username": username,
                     "mode": None,
+                    "map_names": [],
                     "map_name": "",
                     "max_games": None,
                     "max_days": None,
@@ -1419,6 +1465,7 @@ def create_app() -> FastAPI:
                     "username": username,
                     "country": "",
                     "mode": None,
+                    "map_names": [],
                     "map_name": "",
                     "max_games": None,
                     "max_days": None,
@@ -1515,7 +1562,7 @@ def create_app() -> FastAPI:
 
         classic_maps = _classic_maps_for_user(username) if username else []
         classic_country_options = (
-            _classic_country_options_for_user(username, None, "", None, None) if username else []
+            _classic_country_options_for_user(username, None, [], None, None) if username else []
         )
 
         return templates.TemplateResponse(
@@ -1546,6 +1593,7 @@ def create_app() -> FastAPI:
                     "username": username,
                     "country": "",
                     "mode": None,
+                    "map_names": [],
                     "map_name": "",
                     "max_games": None,
                     "max_days": None,
@@ -1554,6 +1602,7 @@ def create_app() -> FastAPI:
                 "classic_form": {
                     "username": username,
                     "mode": None,
+                    "map_names": [],
                     "map_name": "",
                     "max_games": None,
                     "max_days": None,
@@ -1615,7 +1664,7 @@ def create_app() -> FastAPI:
 
         classic_maps = _classic_maps_for_user(username) if username else []
         classic_country_options = (
-            _classic_country_options_for_user(username, None, "", None, None) if username else []
+            _classic_country_options_for_user(username, None, [], None, None) if username else []
         )
 
         return templates.TemplateResponse(
@@ -1647,6 +1696,7 @@ def create_app() -> FastAPI:
                     "username": username,
                     "country": "",
                     "mode": None,
+                    "map_names": [],
                     "map_name": "",
                     "max_games": None,
                     "max_days": None,
@@ -1655,6 +1705,7 @@ def create_app() -> FastAPI:
                 "classic_form": {
                     "username": username,
                     "mode": None,
+                    "map_names": [],
                     "map_name": "",
                     "max_games": None,
                     "max_days": None,
@@ -1715,7 +1766,7 @@ def create_app() -> FastAPI:
 
         classic_maps = _classic_maps_for_user(username) if username else []
         classic_country_options = (
-            _classic_country_options_for_user(username, None, "", None, None) if username else []
+            _classic_country_options_for_user(username, None, [], None, None) if username else []
         )
 
         return templates.TemplateResponse(
@@ -1747,6 +1798,7 @@ def create_app() -> FastAPI:
                     "username": username,
                     "country": "",
                     "mode": None,
+                    "map_names": [],
                     "map_name": "",
                     "max_games": None,
                     "max_days": None,
@@ -1755,6 +1807,7 @@ def create_app() -> FastAPI:
                 "classic_form": {
                     "username": username,
                     "mode": None,
+                    "map_names": [],
                     "map_name": "",
                     "max_games": None,
                     "max_days": None,
